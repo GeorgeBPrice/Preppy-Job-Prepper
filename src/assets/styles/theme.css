@@ -1,0 +1,299 @@
+/* Theme CSS Variables */
+:root {
+  /* Light theme colors */
+  --primary-color: #4f46e5;
+  --primary-gradient: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+  --secondary-color: #6c757d;
+  --success-color: #10b981;
+  --info-color: #06aed5;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+
+  --text-color: #333333;
+  --text-muted: #6c757d;
+  --text-light: #ffffff;
+
+  --bg-color: #f9f9f9;
+  --bg-content: #ffffff;
+  --bg-sidebar: #fcfbff;
+  --bg-header: #f8f9fa;
+  --bg-card: #fbfbff;
+  --bg-code: #efefef;
+  --bg-exercise: #e9ecef;
+  --bg-code-example: #e8e9e9;
+
+  --border-color: #dee2e6;
+  --hover-color: rgba(0, 0, 0, 0.05);
+  --sidebar-active: #d1ecf1;
+  --sidebar-active-border: #17a2b8;
+
+  /* Shadow effects */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Gradients */
+  --header-gradient: linear-gradient(to right, #f9f6ff, #ebe8fd);
+  --sidebar-gradient: linear-gradient(to bottom, #f7f5fa, #ebe8fd);
+  --section-number-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+
+  /* Transitions */
+  --transition-speed: 0.3s;
+}
+
+/* Dark Theme Colors */
+[data-theme='dark'] {
+  --primary-color: #f0f0ff;
+  --primary-gradient: linear-gradient(90deg, #6366f1 0%, #9333ea 100%);
+  --secondary-color: #9ca3af;
+  --success-color: #22c55e;
+  --info-color: #0ea5e9;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+
+  --text-color: #e4dce6;
+  --text-muted: #9ca3af;
+  --text-light: #f3f4f6;
+
+  --bg-color: #111827;
+  --bg-content: #181d29;
+  --bg-sidebar: #1f2937;
+  --bg-header: #1f2937;
+  --bg-card: #1f2937;
+  --bg-code: #000000;
+  --bg-exercise: #2d3748;
+  --bg-code-example: #000000;
+
+  --border-color: #374151;
+  --hover-color: rgba(255, 255, 255, 0.05);
+  --sidebar-active: #37415f;
+  --sidebar-active-border: #6366f1;
+
+  /* Shadow effects */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.36);
+
+  /* Gradients */
+  --header-gradient: linear-gradient(to right, #1f2937, #111827);
+  --sidebar-gradient: linear-gradient(to bottom, #1f2937, #111827);
+  --section-number-gradient: linear-gradient(135deg, #6366f1, #9333ea);
+}
+
+/* Base styles using variables */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition:
+    background-color var(--transition-speed) ease,
+    color var(--transition-speed) ease;
+}
+
+/* App header styling */
+.app-header {
+  background: var(--header-gradient);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
+}
+
+/* Sidebar styling */
+.sidebar {
+  background: var(--sidebar-gradient);
+  border-right: 1px solid var(--border-color);
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
+}
+
+/* Content area styling - base styles */
+.content-area {
+  background-color: var(--bg-content);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-speed) ease;
+  margin-top: 0; /* As per your update */
+}
+
+/* Stronger dark mode selectors for content area */
+html[data-theme='dark'] .content-area,
+body.dark-mode .content-area,
+.dark-mode .content-area,
+[data-theme='dark'] .content-area {
+  background-color: #181d29 !important;
+  color: #e4dce6 !important;
+}
+
+/* Exercise styling */
+.exercise {
+  background-color: var(--bg-exercise);
+  border-left: 4px solid var(--secondary-color);
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
+}
+
+/* Stronger dark mode selectors for exercise */
+html[data-theme='dark'] .exercise,
+body.dark-mode .exercise,
+.dark-mode .exercise,
+[data-theme='dark'] .exercise {
+  background-color: #2d3748 !important;
+  color: #e4dce6 !important;
+}
+
+/* Code example styling */
+.code-example {
+  background-color: var(--bg-code-example);
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
+  margin-bottom: 20px;
+}
+
+.code-example pre,
+.code-example code {
+  background-color: var(--bg-code);
+}
+
+/* Stronger dark mode selectors for code example */
+html[data-theme='dark'] .code-example,
+body.dark-mode .code-example,
+.dark-mode .code-example,
+[data-theme='dark'] .code-example {
+  background-color: #181d29 !important;
+}
+
+html[data-theme='dark'] .code-example pre,
+body.dark-mode .code-example pre,
+.dark-mode .code-example pre,
+[data-theme='dark'] .code-example pre,
+html[data-theme='dark'] .code-example code,
+body.dark-mode .code-example code,
+.dark-mode .code-example code,
+[data-theme='dark'] .code-example code {
+  background-color: #000000 !important;
+}
+
+/* Progress bar styling */
+.progress {
+  height: 25px; /* As per your update */
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  overflow: hidden;
+}
+
+.progress-bar {
+  background: var(--primary-gradient);
+  transition: width 0.5s ease;
+}
+
+/* Section number styling */
+.section-number {
+  background: var(--section-number-gradient);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Active sidebar item */
+.section-header.active {
+  background-color: var(--sidebar-active);
+  border-left: 4px solid var(--sidebar-active-border);
+}
+
+.lesson-item.active,
+.challenge-item.active {
+  background-color: var(--sidebar-active);
+  border-left: 4px solid var(--sidebar-active-border);
+}
+
+/* Apply modern effects to UI elements */
+
+/* Gradient text for headings */
+h1.gradient-text,
+h2.gradient-text,
+h3.gradient-text {
+  background: var(--primary-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+/* Card styling */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Button styling */
+.btn-primary {
+  background: var(--primary-gradient);
+  border-color: var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+}
+
+/* Dark mode specific overrides */
+.dark-mode code {
+  background-color: var(--bg-code);
+  color: #c6c3f9;
+  font-size: medium;
+}
+
+.dark-mode pre {
+  background-color: var(--bg-code);
+}
+
+.dark-mode .code-block {
+  background-color: var(--bg-code);
+}
+
+.dark-mode .progress-bar {
+  background: linear-gradient(90deg, #6366f1, #9333ea);
+}
+
+/* Lesson content styling */
+.lesson-description {
+  background-color: var(--bg-card);
+  color: var(--text-color);
+}
+
+.concept-explanation {
+  color: var(--text-color);
+}
+
+/* Smooth transition for all elements */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: var(--transition-speed);
+}
+
+/* Ensure body class applies styles correctly */
+body.dark-mode {
+  background-color: #111827;
+  color: #e4dce6;
+}
+
+/* Stronger dark mode style enforcement for key elements */
+body.dark-mode .app-container,
+html[data-theme='dark'] .app-container {
+  background-color: #111827;
+  color: #e4dce6;
+}
+
+body.dark-mode .main-content,
+html[data-theme='dark'] .main-content {
+  background-color: #111827;
+}

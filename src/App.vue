@@ -1,0 +1,179 @@
+<template>
+  <div
+    class="app-container"
+    :class="{
+      'sidebar-mobile-open': isMobileMenuOpen,
+      'dark-mode': isDarkMode,
+    }"
+  >
+    <AppHeader @toggle-mobile-menu="handleMobileMenuToggle" />
+    <div
+      class="main-content"
+      :class="{
+        'sidebar-collapsed': isSidebarCollapsed && !isMobileMenuOpen,
+        'dark-mode': isDarkMode,
+      }"
+    >
+      <AppSidebar :is-collapsed="isSidebarCollapsed && !isMobileMenuOpen" @toggle="toggleSidebar" />
+      <main class="content-area" :class="{ 'dark-mode': isDarkMode }">
+        <router-view></router-view>
+        <BackToTop />
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import AppHeader from './components/AppHeader.vue'
+import AppSidebar from './components/AppSidebar.vue'
+import BackToTop from './components/BackToTop.vue'
+import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
+import { useProgressStore } from './store/progress'
+import { useThemeStore } from './store/theme'
+
+const progressStore = useProgressStore()
+const themeStore = useThemeStore()
+const isSidebarCollapsed = ref(false)
+const isMobileMenuOpen = ref(false)
+
+// Create a computed property for dark mode
+const isDarkMode = computed(() => themeStore.isDarkMode)
+
+// Initialize theme
+onBeforeMount(() => {
+  if (!themeStore.isLoaded) {
+    themeStore.loadThemePreference()
+  }
+})
+
+// Watch theme changes to update body class and document attributes
+watch(
+  () => themeStore.isDarkMode,
+  (isDark) => {
+    if (isDark) {
+      document.body.classList.add('dark-mode')
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.body.classList.remove('dark-mode')
+      document.documentElement.setAttribute('data-theme', 'light')
+    }
+  },
+  { immediate: true },
+)
+
+// Handle mobile menu toggle from header
+const handleMobileMenuToggle = (isOpen) => {
+  isMobileMenuOpen.value = isOpen
+
+  // When mobile menu is opened, make sure sidebar is expanded
+  if (isMobileMenuOpen.value && window.innerWidth < 768) {
+    isSidebarCollapsed.value = false
+  }
+}
+
+// Toggle sidebar collapsed state
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+
+  // If on mobile, closing sidebar should also close mobile menu
+  if (isSidebarCollapsed.value && window.innerWidth < 768) {
+    isMobileMenuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  progressStore.loadProgress()
+
+  // Initial theme application
+  if (themeStore.isDarkMode) {
+    document.body.classList.add('dark-mode')
+    document.documentElement.setAttribute('data-theme', 'dark')
+  } else {
+    document.body.classList.remove('dark-mode')
+    document.documentElement.setAttribute('data-theme', 'light')
+  }
+
+  // Check initial screen size
+  if (window.innerWidth < 768) {
+    isSidebarCollapsed.value = true
+  }
+})
+</script>
+
+<style>
+/* Base styles */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+}
+
+.app-container.dark-mode {
+  background-color: #111827;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  padding-top: 60px; /* Header height */
+  position: relative;
+  background-color: var(--bg-color);
+}
+
+.main-content.dark-mode {
+  background-color: #111827;
+}
+
+/* Initial content-area styles - sidebar is 300px wide */
+.content-area {
+  flex: 1;
+  padding: 20px;
+  margin-left: 300px; /* Match the sidebar width */
+  transition: margin-left 0.3s ease;
+  width: calc(100% - 300px); /* Calculate the remaining width */
+  border-radius: 0.5rem;
+  background-color: var(--bg-content);
+}
+
+/* Dark mode specific styles for content area - stronger specificity */
+.content-area.dark-mode,
+.dark-mode .content-area {
+  background-color: #181d29 !important;
+  color: #e4dce6 !important;
+}
+
+/* When sidebar is collapsed, adjust content-area margins - sidebar is 60px wide */
+.sidebar-collapsed .content-area {
+  margin-left: 60px; /* Match the collapsed sidebar width */
+  width: calc(100% - 60px); /* Calculate the remaining width */
+}
+
+/* Mobile styles */
+@media (max-width: 767px) {
+  .content-area {
+    margin-left: 0;
+    width: 100%;
+    transition:
+      margin-left 0.3s ease,
+      width 0.3s ease;
+  }
+
+  .sidebar-mobile-open .content-area {
+    margin-left: 300px;
+    width: calc(100% - 300px);
+  }
+
+  .sidebar-mobile-open::after {
+    content: '';
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 900;
+    transition: opacity 0.3s;
+  }
+}
+</style>
