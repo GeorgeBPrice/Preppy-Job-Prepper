@@ -14,8 +14,8 @@ const API_ENDPOINTS = {
   'llama-3': 'https://api.llama.ai/v1/chat/completions',
 }
 
-// AI model mappings
-const MODEL_MAPPINGS = {
+// AI model mappings (export so we can hook into the models in the UI)
+export const MODEL_MAPPINGS = {
   'claude-3-5-sonnet': 'claude-3-5-sonnet-20240620',
   'claude-3-7-sonnet': 'claude-3-7-sonnet-20250219',
   'claude-3-opus': 'claude-3-opus-20240229',
