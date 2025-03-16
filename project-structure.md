@@ -1,68 +1,68 @@
-JavaScript-Job-Prepper
-└── javascript-job-prepper
-├── .editorconfig
-├── .gitattributes
-├── .gitignore
-├── .prettierrc.json
-├── .vscode
-│ ├── extensions.json
-│ └── settings.json
-├── eslint.config.js
-├── index.html
-├── jsconfig.json
-├── LICENSE
-├── package-lock.json
-├── package.json
-├── project-structure.md
-├── public
-│ └── favicon.ico
-├── README.md
-├── src
-│ ├── App.vue
-│ ├── assets
-│ │ ├── logo.svg
-│ │ └── styles
-│ │ ├── main.css
-│ │ ├── markdown-styles.css
-│ │ └── theme.css
-│ ├── components
-│ │ ├── AppHeader.vue
-│ │ ├── AppSidebar.vue
-│ │ ├── BackToTop.vue
-│ │ ├── CodeEditor.vue
-│ │ ├── CurriculumContent.vue
-│ │ ├── InterviewQuestions.vue
-│ │ ├── LessonContent.vue
-│ │ ├── ProgressBar.vue
-│ │ ├── SearchBar.vue
-│ │ └── ThemeToggle.vue
-│ ├── data
-│ │ ├── curriculum.js
-│ │ └── sections
-│ │ ├── curriculum-section1.js
-│ │ ├── curriculum-section10.js
-│ │ ├── curriculum-section2.js
-│ │ ├── curriculum-section3.js
-│ │ ├── curriculum-section4.js
-│ │ ├── curriculum-section5.js
-│ │ ├── curriculum-section6.js
-│ │ ├── curriculum-section7.js
-│ │ ├── curriculum-section8.js
-│ │ └── curriculum-section9.js
-│ ├── main.js
-│ ├── router
-│ │ └── index.js
-│ ├── store
-│ │ ├── ai.js
-│ │ ├── progress.js
-│ │ └── theme.js
-│ ├── utils
-│ │ ├── aiService.js
-│ │ ├── markdownFormatter.js
-│ │ └── storage.js
-│ └── views
-│ ├── ChallengeSummary.vue
-│ ├── HomeView.vue
-│ ├── InterviewQuestionsView.vue
-│ └── LessonView.vue
-└── vite.config.js
+## JavaScript-Job-Prepper
+
+- [.editorconfig](#editorconfig)
+- [.gitattributes](#gitattributes)
+- [.gitignore](#gitignore)
+- [.prettierrc.json](#prettiercjson)
+- [.vscode](#vscode)
+  - [extensions.json](#extensionsjson)
+  - [settings.json](#settingsjson)
+- [eslint.config.js](#eslintconfigjs)
+- [index.html](#indexhtml)
+- [jsconfig.json](#jsconfigjson)
+- [LICENSE](#license)
+- [package-lock.json](#package-lockjson)
+- [package.json](#packagejson)
+- [project-structure.md](#project-structuremd)
+- [public](#public)
+  - [favicon.ico](#faviconico)
+- [README.md](#readmemd)
+- [src](#src)
+  - [App.vue](#appvue)
+  - [assets](#assets)
+    - [logo.svg](#logosvg)
+    - [styles](#styles)
+      - [main.css](#maincss)
+      - [markdown-styles.css](#markdown-stylescss)
+      - [theme.css](#themecss)
+  - [components](#components)
+    - [AppHeader.vue](#appheadervue)
+    - [AppSidebar.vue](#appsidebavue)
+    - [BackToTop.vue](#backtotopvue)
+    - [CodeEditor.vue](#codeeditvue)
+    - [CurriculumContent.vue](#curriculumcontentvue)
+    - [InterviewQuestions.vue](#interviewquestionsvue)
+    - [LessonContent.vue](#lessoncontentvue)
+    - [ProgressBar.vue](#progressbarvue)
+    - [SearchBar.vue](#searchbarvue)
+    - [ThemeToggle.vue](#themtogglevue)
+  - [data](#data)
+    - [curriculum.js](#curriculumjs)
+    - [sections](#sections)
+      - [curriculum-section1.js](#curriculum-section1js)
+      - [curriculum-section10.js](#curriculum-section10js)
+      - [curriculum-section2.js](#curriculum-section2js)
+      - [curriculum-section3.js](#curriculum-section3js)
+      - [curriculum-section4.js](#curriculum-section4js)
+      - [curriculum-section5.js](#curriculum-section5js)
+      - [curriculum-section6.js](#curriculum-section6js)
+      - [curriculum-section7.js](#curriculum-section7js)
+      - [curriculum-section8.js](#curriculum-section8js)
+      - [curriculum-section9.js](#curriculum-section9js)
+  - [main.js](#mainjs)
+  - [router](#router)
+    - [index.js](#indexjs)
+  - [store](#store)
+    - [ai.js](#aijs)
+    - [progress.js](#progressjs)
+    - [theme.js](#themejs)
+  - [utils](#utils)
+    - [aiService.js](#aiservicejs)
+    - [markdownFormatter.js](#markdownformatterjs)
+    - [storage.js](#storagejs)
+  - [views](#views)
+    - [ChallengeSummary.vue](#challengesummaryvue)
+    - [HomeView.vue](#homeviewvue)
+    - [InterviewQuestionsView.vue](#interviewquestionsviewvue)
+    - [LessonView.vue](#lessonviewvue)
+- [vite.config.js](#viteconfigjs)

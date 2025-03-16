@@ -19,39 +19,43 @@
     </div>
 
     <div class="curriculum-overview">
-      <h2>Course Overview</h2>
-      <p>
-        This program breaks down JavaScript concepts into 10 core areas that are crucial for your
-        interview success.
+      <h2 class="section-title">Course Overview</h2>
+      <p class="section-description core">
+        <strong>10 Core Sections</strong>
       </p>
 
       <div class="section-cards">
         <div v-for="(section, index) in curriculum" :key="index" class="section-card">
           <div class="card">
-            <div class="card-body">
+            <div class="card-header">
+              <div class="section-number">{{ index + 1 }}</div>
               <h3 class="card-title">
-                {{ index + 1 }}. {{ section.title }}
-                <span v-if="isSectionCompleted(index)" class="badge bg-success ms-2"
-                  >Completed</span
-                >
+                {{ section.title }}
+                <span v-if="isSectionCompleted(index)" class="completion-badge">
+                  <i class="bi bi-check-circle-fill"></i>
+                </span>
               </h3>
+            </div>
+            <div class="card-body">
               <p class="card-text">{{ section.description }}</p>
               <div class="lesson-topics">
-                <h4 style="margin-top: 10px !important">Topics covered:</h4>
+                <h4>Topics covered:</h4>
                 <ul>
                   <li v-for="(lesson, lessonIndex) in section.lessons" :key="lessonIndex">
-                    {{ lesson.title }}
-                    <span v-if="isLessonCompleted(index, lessonIndex)" class="badge bg-success ms-1"
-                      >✓</span
-                    >
+                    <i class="bi bi-file-earmark-code lesson-icon"></i>
+                    <span class="lesson-title">{{ lesson.title }}</span>
+                    <span v-if="isLessonCompleted(index, lessonIndex)" class="lesson-completed">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </span>
                   </li>
                 </ul>
               </div>
               <router-link
                 :to="{ name: 'lesson', params: { sectionId: index + 1, lessonId: 1 } }"
-                class="btn btn-primary"
-                >Start Section</router-link
+                class="btn btn-primary start-btn"
               >
+                <i class="bi bi-play-fill me-1"></i> Start Section
+              </router-link>
             </div>
           </div>
         </div>
@@ -59,23 +63,34 @@
     </div>
 
     <div class="job-ready-section">
-      <h2>Prepare for JavaScript Interview Success</h2>
-      <p>This curriculum is specifically designed to help you succeed in interviews for:</p>
+      <h2 class="section-title">Prepare for JavaScript Interview Success</h2>
+      <p class="section-description">
+        This curriculum is specifically designed to help you succeed in interviews for:
+      </p>
       <div class="row">
         <div class="col-md-4">
           <div class="job-card">
+            <div class="job-icon">
+              <i class="bi bi-globe"></i>
+            </div>
             <h3>Web Developer</h3>
             <p>Master DOM manipulation, event handling, and modern frameworks.</p>
           </div>
         </div>
         <div class="col-md-4">
           <div class="job-card">
+            <div class="job-icon">
+              <i class="bi bi-stack"></i>
+            </div>
             <h3>Full-Stack Developer</h3>
             <p>Balance client-side expertise with server-side JavaScript knowledge.</p>
           </div>
         </div>
         <div class="col-md-4">
           <div class="job-card">
+            <div class="job-icon">
+              <i class="bi bi-code-square"></i>
+            </div>
             <h3>Software Developer</h3>
             <p>Develop advanced understanding of performance optimization and design patterns.</p>
           </div>
@@ -141,9 +156,10 @@ const continueProgress = () => {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   margin-bottom: 1rem;
   display: inline-block;
+  font-weight: 700;
 }
 
 .lead {
@@ -160,15 +176,41 @@ const continueProgress = () => {
   margin-bottom: 60px;
 }
 
-.curriculum-overview h2 {
+.section-title {
   color: var(--text-color);
   margin-bottom: 1rem;
+  font-size: 2rem;
+  font-weight: 600;
+  position: relative;
+  display: inline-block;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -8px;
+  width: 60px;
+  height: 4px;
+  background: var(--primary-gradient);
+  border-radius: 2px;
+}
+
+.section-description {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  max-width: 800px;
+  color: var(--text-muted);
+}
+
+.section-description.core {
+  font-size: 1.2rem;
 }
 
 .section-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 25px;
   margin-top: 30px;
 }
 
@@ -178,82 +220,209 @@ const continueProgress = () => {
 
 .card {
   height: 100%;
-  transition:
-    transform 0.3s,
-    box-shadow 0.3s;
+  transition: all 0.3s ease;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px);
   box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem 1.25rem 0.5rem;
+  background: none;
+  border-bottom: none;
+}
+
+.section-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  color: white;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 1.25rem;
+  margin-right: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .card-title {
   color: var(--text-color);
-  margin-top: 5px !important;
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.completion-badge {
+  margin-left: 10px;
+  color: var(--success-color);
+  font-size: 1.1rem;
+}
+
+.card-body {
+  padding: 1rem 1.25rem 1.5rem;
 }
 
 .card-text {
   color: var(--text-color);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
 }
 
 .lesson-topics {
   margin-top: 20px;
-  margin-bottom: 20px;
-  color: var(--text-color);
+  margin-bottom: 25px;
 }
 
 .lesson-topics h4 {
   color: var(--text-color);
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+  font-weight: 600;
+  position: relative;
+  display: inline-block;
+}
+
+.lesson-topics h4::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -5px;
+  width: 40px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 1.5px;
 }
 
 .lesson-topics ul {
-  padding-left: 1.5rem;
+  padding-left: 0;
+  list-style: none;
 }
 
 .lesson-topics li {
   color: var(--text-color);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
 }
 
-.badge {
-  transition: background-color 0.3s ease;
+.lesson-icon {
+  color: var(--primary-color);
+  margin-right: 10px;
+  font-size: 1rem;
 }
 
+.lesson-title {
+  flex: 1;
+}
+
+.lesson-completed {
+  color: var(--success-color);
+  margin-left: 10px;
+  font-size: 0.9rem;
+}
+
+.start-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem;
+  font-weight: 500;
+  margin-top: 10px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Job ready section */
 .job-ready-section {
   text-align: center;
   padding: 40px 0;
+  margin-top: 20px;
 }
 
-.job-ready-section h2 {
-  color: var(--text-color);
+.job-ready-section .section-title {
   margin-bottom: 1.5rem;
 }
 
 .job-card {
   background-color: var(--bg-card);
-  padding: 20px;
-  border-radius: 5px;
+  padding: 30px 20px;
+  border-radius: 12px;
   height: 100%;
   margin-top: 30px;
   transition: all 0.3s ease;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .job-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px);
   box-shadow: var(--shadow-md);
+}
+
+.job-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  color: white;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .job-card h3 {
   color: var(--text-color);
   margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
 }
 
 .job-card p {
-  color: var(--text-color);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+  .section-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-section h1 {
+    font-size: 2.3rem;
+  }
+
+  .section-title {
+    font-size: 1.8rem;
+  }
+
+  .section-description {
+    font-size: 1rem;
+  }
 }
 </style>

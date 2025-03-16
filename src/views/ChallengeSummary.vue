@@ -72,7 +72,13 @@
 
         <div class="config-row">
           <div class="config-item">
-            <select v-model="aiStore.provider" class="form-select" @change="handleProviderChange">
+            <label for="ai-provider" class="form-label">AI Provider</label>
+            <select
+              id="ai-provider"
+              v-model="aiStore.provider"
+              class="form-select"
+              @change="handleProviderChange"
+            >
               <option
                 v-for="provider in aiStore.availableProviders"
                 :key="provider.value"
@@ -83,22 +89,27 @@
             </select>
           </div>
           <div class="config-item">
+            <label for="ai-version" class="form-label">Model Version</label>
             <input
+              id="ai-version"
               type="text"
-              v-model="aiStore.version"
+              v-model="modelVersion"
               class="form-control"
-              placeholder="version (or leave as 'latest')"
+              placeholder="latest"
             />
           </div>
           <div class="config-item api-key-input">
+            <label for="api-key" class="form-label">API Key</label>
             <input
+              id="api-key"
               type="password"
               v-model="apiKey"
               class="form-control"
               placeholder="Your API Key"
             />
           </div>
-          <div class="config-item">
+          <div class="config-item config-button-item">
+            <label class="form-label invisible">Action</label>
             <button @click="saveAIConfig" class="btn" :class="configButtonClass">
               <span v-if="isTestingConnection">
                 <span
@@ -175,7 +186,7 @@ import { curriculum } from '../data/curriculum'
 import CodeEditor from '../components/CodeEditor.vue'
 import BackToTop from '../components/BackToTop.vue'
 import Prism from 'prismjs'
-import { validateApiKey, testApiConnection } from '../utils/aiService'
+import { validateApiKey, testApiConnection, MODEL_MAPPINGS } from '../utils/aiService'
 import { formatMarkdown } from '../utils/markdownFormatter'
 
 const route = useRoute()
@@ -189,6 +200,33 @@ const apiKey = ref('')
 const configSaveStatus = ref('')
 const isTestingConnection = ref(false)
 const savedResponse = ref(null)
+
+// Add a computed property and a watcher
+const modelVersion = computed({
+  get: () => {
+    return aiStore.version === 'latest' && aiStore.provider && MODEL_MAPPINGS[aiStore.provider]
+      ? MODEL_MAPPINGS[aiStore.provider]
+      : aiStore.version
+  },
+  set: (value) => {
+    aiStore.version = value
+  },
+})
+
+// Update the watcher to watch for provider changes
+watch(
+  () => aiStore.provider,
+  (newProvider) => {
+    if (newProvider && aiStore.version === 'latest') {
+      // When provider changes, update the version field to show the actual model name
+      // But only if the user hasn't manually set a version
+      const defaultModel = MODEL_MAPPINGS[newProvider]
+      if (defaultModel) {
+        aiStore.version = defaultModel
+      }
+    }
+  },
+)
 
 // Computed property for the Save Config button class
 const configButtonClass = computed(() => {
@@ -586,17 +624,47 @@ watch(
 .config-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
+  gap: 15px;
+  align-items: flex-start;
 }
 
 .config-item {
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
 }
 
 .api-key-input {
-  flex: 2;
+  flex: 1;
+}
+
+.config-button-item {
+  align-self: flex-end;
+  flex: 0.75;
+}
+
+.form-label {
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .config-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .config-item {
+    width: 100%;
+    flex: unset;
+  }
+
+  .config-button-item {
+    align-self: stretch;
+  }
 }
 
 /* AI Response section */
