@@ -2,6 +2,10 @@
 
 _Preppy-Job-Prepper_ is a comprehensive **Language Review** app designed to prepare professionals for job interviews in roles such of **Mid-level** to **Senior** level, for Full Stack, Web Developer or Application Developer positions. The app currently only covers core JavaScript concepts via concise lessons, interview focus examples, common interview questions, code challenges, and \*_AI-powered code grading and feedback_. The curriculum is broken down into 10 key sections ranging from fundamentals to advanced topics. There is also an Interview Questions section.
 
+<img width="962" alt="Home - darkmode" src="https://github.com/user-attachments/assets/8a51451d-4e4e-42ad-970f-0eb516d6e693" />
+
+
+
 This is a **static application**, meaning it does not require a database to run. The curriculum content is managed through static data files (e.g., `curriculum.js`) or in-memory data structures, simplifying deployment and eliminating the need for backend server setup. User progress and code submissions are stored locally using `localStorage` and cookies.
 
 ## Features
@@ -13,6 +17,11 @@ This is a **static application**, meaning it does not require a database to run.
 - **Multiple AI Providers**: Choose from a range of AI models for code review, including Claude 3.5 Sonnet, GPT-4o, Mistral Large, and more, with configurable API keys and versions.
 - **Code Editor**: Write, save, and preview your solutions with syntax highlighting powered by Prism.js.
 - **Static Deployment**: Run the app entirely on the client side with no server or database required.
+  
+<img width="682" alt="Add you own API key" src="https://github.com/user-attachments/assets/a5a60595-fe68-4ff2-bffe-6a5352de7c9e" />
+
+<img width="1007" alt="AI Code Challenge Review - darkmode" src="https://github.com/user-attachments/assets/b642ac9b-5e3a-4b09-bf3d-c1c8f726cc76" />
+
 
 ## Key Technologies Used
 
@@ -57,6 +66,8 @@ The app breaks down JavaScript concepts into 10 core areas crucial for interview
 10. **Advanced JavaScript Concepts**: Prototypes, Web Workers, memory management, and TypeScript basics.
 
 This curriculum prepares you for roles like Web Developer, Full-Stack Developer, and Software Developer by focusing on practical, interview-relevant skills.
+<img width="963" alt="Interview Focus - lightmode" src="https://github.com/user-attachments/assets/f9c9c2c0-d991-496d-8438-1a7144e8830c" />
+
 
 ## Setup and Installation
 
