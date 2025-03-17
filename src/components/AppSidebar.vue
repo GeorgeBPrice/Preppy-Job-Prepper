@@ -3,17 +3,15 @@
     <!-- Top Navigation Row -->
     <div class="sidebar-top-nav" :class="{ stacked: isCollapsed }">
       <!-- Home Button -->
-      <div class="sidebar-nav-button">
-        <router-link
-          to="/"
-          class="home-nav-link"
-          :class="{ active: isHomeActive() }"
-          title="Home"
-          @click="handleHomeClick"
-        >
-          <i class="bi bi-house-door-fill"></i>
-        </router-link>
-      </div>
+      <router-link
+        to="/"
+        class="home-nav-link sidebar-nav-button sidebar-toggle d-none d-md-flex"
+        :class="{ active: isHomeActive() }"
+        title="Home"
+        @click="handleSectionClick()"
+      >
+        <i class="bi bi-house-door-fill"></i>
+      </router-link>
 
       <!-- Collapse/Expand Button - Hidden on mobile -->
       <div class="sidebar-nav-button sidebar-toggle d-none d-md-flex" @click="$emit('toggle')">
@@ -21,18 +19,18 @@
       </div>
     </div>
 
+    <!-- Curriculum Menu -->
     <div class="sidebar-content" ref="sidebarContent">
-      <!-- Interview Questions - Highlighted with a distinct style -->
       <div class="section-item interview-questions-item">
         <router-link
           to="/interview-questions"
           class="interview-nav-link"
           :class="{ active: isInterviewActive(), collapsed: isCollapsed }"
-          title="Interview Questions"
-          @click="handleItemClick"
+          title="Prep Interview Questions"
+          @click="handleSectionClick()"
         >
           <span class="section-icon"><i class="bi bi-question-circle-fill"></i></span>
-          <span class="section-title" v-show="!isCollapsed">Interview Questions</span>
+          <span class="section-title" v-show="!isCollapsed">Prep Interview Questions</span>
         </router-link>
       </div>
 
@@ -94,13 +92,7 @@
       </div>
     </div>
 
-    <!-- Bottom Home Button (keeping this for consistency) -->
-    <div class="home-button">
-      <router-link to="/" title="Home" :class="{ active: isHomeActive() }" @click="handleHomeClick">
-        <i class="bi bi-house-door-fill"></i>
-        <span v-show="!isCollapsed">Home</span>
-      </router-link>
-    </div>
+    <div class="section-bottom"></div>
   </aside>
 </template>
 
@@ -121,7 +113,7 @@ const emit = defineEmits(['toggle', 'close', 'expand'])
 
 const route = useRoute()
 const progressStore = useProgressStore()
-const openSections = ref([]) // Start with all sections collapsed
+const openSections = ref([])
 const sidebarContent = ref(null)
 const sectionRefs = ref({})
 
@@ -132,7 +124,7 @@ watch(
     const currentSectionId = parseInt(newParams.sectionId)
 
     if (currentSectionId) {
-      // Close all other sections and only open the current one
+      // We only want the currently toggled menu section to be open
       openSections.value = [currentSectionId - 1]
 
       // Wait for DOM update after changing openSections
@@ -150,24 +142,21 @@ onMounted(async () => {
   const currentSectionId = parseInt(route.params.sectionId)
 
   if (currentSectionId) {
-    // Only open the section that matches the current route
     openSections.value = [currentSectionId - 1]
 
-    // Wait for DOM update
     await nextTick()
 
-    // Scroll to active section after component is mounted and sections are expanded
     scrollToSection(currentSectionId - 1)
   }
 })
 
-// Handle click on section header
 const handleSectionClick = (sectionIndex) => {
   // If sidebar is collapsed, expand it first then open the section
   if (props.isCollapsed) {
-    emit('expand') // Emit event to expand sidebar
+    // toggles the sidebar to expand
+    emit('toggle')
 
-    // After sidebar expands, open the section
+    // expands the menu section
     nextTick(() => {
       openSections.value = [sectionIndex]
       nextTick(() => {
@@ -176,20 +165,6 @@ const handleSectionClick = (sectionIndex) => {
     })
   } else {
     toggleSection(sectionIndex)
-  }
-}
-
-// Handle click on any item that should expand the sidebar if collapsed
-const handleItemClick = () => {
-  if (props.isCollapsed) {
-    emit('expand') // Emit event to expand sidebar
-  }
-}
-
-// Handle click on home button
-const handleHomeClick = () => {
-  if (props.isCollapsed) {
-    emit('expand') // Emit event to expand sidebar
   }
 }
 
@@ -336,14 +311,7 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .home-nav-link {
-  color: var(--text-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  border-radius: 4px;
-  padding: 5px;
-  transition: all 0.2s ease;
+  flex: 3;
 }
 
 .home-nav-link:hover,
@@ -353,7 +321,6 @@ const isChallengeCompleted = (sectionIndex) => {
 
 .home-nav-link.active {
   color: var(--primary-color);
-  background-color: var(--sidebar-active);
 }
 
 .sidebar-content {
@@ -426,6 +393,10 @@ const isChallengeCompleted = (sectionIndex) => {
 
 .section-title {
   flex: 1;
+}
+
+.section-bottom {
+  padding: 50px;
 }
 
 .lesson-list {
@@ -511,17 +482,22 @@ const isChallengeCompleted = (sectionIndex) => {
 .interview-nav-link {
   display: flex;
   align-items: center;
-  padding: 10px 15px;
-  border-radius: 8px;
-  text-decoration: none;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  transition: background-color 0.2s ease;
   color: var(--text-color);
-  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
 }
 
 /* Handle collapsed state for interview link */
 .interview-nav-link.collapsed {
   justify-content: center;
   padding: 10px 0;
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-sm);
 }
 
 .interview-nav-link:hover {
@@ -529,20 +505,22 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .interview-nav-link.active {
-  background-color: var(--primary-color);
-  color: white;
+  background-color: var(--sidebar-active);
 }
 
 .section-icon {
+  margin-right: 10px;
+  font-weight: bold;
+  min-width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  margin-right: 10px;
-  transition: margin 0.3s ease;
+  background: var(--section-number-gradient);
+  color: var(--text-light);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 /* Remove margin when sidebar is collapsed */

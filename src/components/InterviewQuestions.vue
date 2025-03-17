@@ -500,8 +500,8 @@ const toggleQuestion = (index) => {
 }
 
 .tab-button.active {
-  background: var(--primary-color);
-  color: var(--text-light);
+  background: var(--sidebar-active);
+  color: var(--text-color);
   border-color: var(--primary-color);
   box-shadow: var(--shadow-sm);
 }

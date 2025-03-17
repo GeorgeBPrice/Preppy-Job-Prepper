@@ -85,7 +85,7 @@ onMounted(() => {
 
 .view-description {
   font-size: 1.1rem;
-  color: #6c757d;
+  color: var(--text-color);
   max-width: 800px;
   margin-bottom: 2rem;
 }
