@@ -260,7 +260,7 @@ const isChallengeCompleted = (sectionIndex) => {
   transition: width 0.3s ease;
   height: 100vh;
   position: fixed;
-  top: 60px; /* Adjust based on your header height */
+  top: 60px;
   left: 0;
   bottom: 0;
   display: flex;
@@ -269,8 +269,51 @@ const isChallengeCompleted = (sectionIndex) => {
   box-shadow: var(--shadow-sm);
 }
 
+.home-nav-link {
+  flex: 3;
+}
+
+.sidebar-top-nav[data-v-53430c37] {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-sidebar);
+  z-index: 10;
+  transition: flex-direction 0.3s ease;
+}
+
+.sidebar-toggle {
+  text-align: center;
+  border-left: 1px solid var(--border-color);
+  transition: border 0.3s ease;
+  color: var(--text-color);
+}
+.sidebar-toggle .bi,
+.home-button .bi,
+.mobile-menu-toggle .bi {
+  font-size: 1.4rem;
+}
+
 .sidebar.collapsed {
   width: 60px;
+}
+
+/* Improved scrollbar for sidebar */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background-color: #adb5bd;
+  border-radius: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background-color: #6c757d;
 }
 
 /* Top Nav Section */
@@ -326,7 +369,7 @@ const isChallengeCompleted = (sectionIndex) => {
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 5px;
 }
 
 .sidebar-title {
@@ -383,7 +426,7 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .sidebar.collapsed .section-header {
-  padding: 8px 0;
+  padding: 5px 0;
   justify-content: center;
 }
 

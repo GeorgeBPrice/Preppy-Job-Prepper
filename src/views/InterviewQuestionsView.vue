@@ -75,28 +75,4 @@ onMounted(() => {
 .interview-view {
   padding: 30px 0;
 }
-
-.view-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.view-description {
-  font-size: 1.1rem;
-  color: var(--text-color);
-  max-width: 800px;
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-  .interview-view {
-    padding: 20px 0;
-  }
-
-  .view-title {
-    font-size: 2rem;
-  }
-}
 </style>

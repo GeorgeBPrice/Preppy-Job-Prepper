@@ -246,7 +246,7 @@ const addCopyButtonsToExplanationCode = () => {
 
   sections.forEach((preElement) => {
     // Check if button already exists to avoid duplicates
-    if (!preElement.parentElement.querySelector('.explanation-copy-btn')) {
+    if (!preElement.parentElement.querySelector('.code-copy-btn')) {
       // Create wrapper if needed
       if (preElement.parentElement.style.position !== 'relative') {
         preElement.parentElement.style.position = 'relative'
@@ -254,7 +254,7 @@ const addCopyButtonsToExplanationCode = () => {
 
       // Create copy button
       const copyButton = document.createElement('div')
-      copyButton.className = 'explanation-copy-btn'
+      copyButton.className = 'code-copy-btn'
       copyButton.title = 'Copy code'
 
       // Create icon
@@ -642,70 +642,8 @@ onUpdated(() => {
   overflow: hidden;
 }
 
-.scrollable-code {
-  margin: 0;
-  padding: 1rem;
-  border-radius: 6px;
-  background-color: #171717;
-  overflow-x: auto;
-  overflow-y: auto;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
-  font-size: 0.95rem;
-  max-height: 70vh; /* Maximum height of 70% of viewport height */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-/* Custom scrollbar styles */
-.scrollable-code::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollable-code::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
 .code-wrapper code {
   color: #e4e4e4;
-}
-
-.code-copy-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--text-muted);
-  border: none;
-  border-radius: 4px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0.6;
-  z-index: 5;
-}
-
-.code-wrapper:hover .code-copy-btn {
-  opacity: 1;
-}
-
-.code-copy-btn:hover {
-  background-color: var(--primary-color);
-  color: white;
 }
 
 .exercise {
@@ -803,23 +741,6 @@ onUpdated(() => {
   font-size: 0.95rem;
 }
 
-/* Add dark mode styles for embedded HTML content */
-:deep(h1),
-:deep(h2),
-:deep(h3),
-:deep(h4),
-:deep(h5),
-:deep(h6) {
-  color: var(--text-color);
-}
-
-:deep(p),
-:deep(li),
-:deep(ul),
-:deep(ol) {
-  color: var(--text-color);
-}
-
 /* Inline code formatting in explanations */
 :deep(.explanation p code),
 :deep(.explanation li code),
@@ -907,8 +828,5 @@ onUpdated(() => {
     margin-top: 6px;
     gap: 6px;
   }
-
-  /* .section-link {
-  } */
 }
 </style>

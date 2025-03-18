@@ -122,38 +122,8 @@ export const applyCustomPrismStyling = () => {
       border-left-color: rgba(255,255,255,0.1);
     }
     
-    /* Copy button for explanation code blocks, a workaround */
-    /* This needs to be applied after the DOM is rendered, see addCopyButtonsToExplanationCode() */
     .explanation pre {
       position: relative;
-    }
-    
-    .explanation-copy-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background-color: rgba(0, 0, 0, 0.1);
-      border-radius: 4px;
-      padding: 0 7px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-      z-index: 10;
-    }
-    
-    .explanation-copy-btn:hover {
-      background-color: rgba(0, 0, 0, 0.2);
-    }
-
-    .explanation-copy-btn:active {
-      background-color: #ffffff);
-    }
-    
-    [data-theme='dark'] .explanation-copy-btn {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    [data-theme='dark'] .explanation-copy-btn:hover {
-      background-color: rgba(255, 255, 255, 0.2);
     }
   `
   document.head.appendChild(styleElement)

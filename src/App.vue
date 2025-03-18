@@ -116,7 +116,7 @@ onMounted(() => {
 .main-content {
   display: flex;
   flex: 1;
-  padding-top: 60px; /* Header height */
+  padding-top: 60px;
   position: relative;
   background-color: var(--bg-color);
 }
@@ -125,31 +125,22 @@ onMounted(() => {
   background-color: #111827;
 }
 
-/* Initial content-area styles - sidebar is 300px wide */
 .content-area {
   flex: 1;
   padding: 20px;
-  margin-left: 300px; /* Match the sidebar width */
+  margin-left: 300px;
   transition: margin-left 0.3s ease;
-  width: calc(100% - 300px); /* Calculate the remaining width */
+  width: calc(100% - 300px);
   border-radius: 0.5rem;
   background-color: var(--bg-content);
 }
 
-/* Dark mode specific styles for content area - stronger specificity */
-.content-area.dark-mode,
-.dark-mode .content-area {
-  background-color: #181d29 !important;
-  color: #e4dce6 !important;
-}
-
-/* When sidebar is collapsed, adjust content-area margins - sidebar is 60px wide */
+/* CSS fix for content. */
 .sidebar-collapsed .content-area {
-  margin-left: 60px; /* Match the collapsed sidebar width */
-  width: calc(100% - 60px); /* Calculate the remaining width */
+  margin-left: 60px;
+  width: calc(100% - 60px);
 }
 
-/* Mobile styles */
 @media (max-width: 767px) {
   .content-area {
     margin-left: 0;
@@ -157,11 +148,6 @@ onMounted(() => {
     transition:
       margin-left 0.3s ease,
       width 0.3s ease;
-  }
-
-  .sidebar-mobile-open .content-area {
-    margin-left: 300px;
-    width: calc(100% - 300px);
   }
 
   .sidebar-mobile-open::after {
