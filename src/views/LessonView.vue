@@ -34,7 +34,9 @@
           Previous Lesson
         </button>
 
-        <button v-if="hasNext" @click="navigateToNext" class="btn btn-primary">Next Lesson</button>
+        <button v-if="hasNext" @click="navigateToNext" class="btn btn-primary float-end">
+          Next Lesson
+        </button>
       </div>
     </div>
 
@@ -149,7 +151,7 @@ const navigateToNext = () => {
     router.push({
       name: 'lesson',
       params: {
-        sectionId: currentSectionIndex + 2, // +2 for the same reason
+        sectionId: currentSectionIndex + 2,
         lessonId: 1,
       },
     })
@@ -161,7 +163,7 @@ const loadContent = () => {
   setTimeout(() => {
     loading.value = false
     checkCompletion()
-  }, 300) // Simulate loading time
+  }, 300)
 }
 
 onMounted(() => {
@@ -174,6 +176,15 @@ watch([sectionId, lessonId], () => {
 </script>
 
 <style scoped>
+/* interview highlight */
+.interview-tip {
+  margin-top: 30px;
+  border: 1px solid #cd5c5c;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #ffe3e524;
+}
+
 .lesson-view {
   min-height: 400px;
   position: relative;
@@ -194,13 +205,5 @@ watch([sectionId, lessonId], () => {
 .lesson-content {
   max-width: 900px;
   margin: 0 auto;
-}
-
-.navigation-buttons {
-  margin-top: 30px;
-  margin-bottom: 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 </style>

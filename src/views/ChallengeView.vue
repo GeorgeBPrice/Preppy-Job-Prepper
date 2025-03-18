@@ -522,7 +522,6 @@ watch(
   margin-bottom: 8px;
 }
 
-/* Starter code with copy button and scrolling */
 .starter-code {
   background-color: var(--bg-code-example);
   padding: 15px;
@@ -543,68 +542,6 @@ watch(
   overflow: hidden;
 }
 
-.scrollable-code {
-  margin: 0;
-  padding: 15px;
-  background-color: #000000;
-  border-radius: 4px;
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 70vh; /* Maximum height of 70% of viewport height */
-  transition: all var(--transition-speed) ease;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-/* Custom scrollbar styles */
-.scrollable-code::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollable-code::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.code-copy-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.5);
-  color: var(--text-light);
-  border: none;
-  border-radius: 4px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0.6;
-  z-index: 5;
-}
-
-.code-wrapper:hover .code-copy-btn {
-  opacity: 1;
-}
-
-.code-copy-btn:hover {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-/* AI Configuration styling */
 .ai-config-section {
   margin: 30px 0;
   padding: 20px;
@@ -650,7 +587,6 @@ watch(
   color: var(--text-color);
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .config-row {
     flex-direction: column;
@@ -667,9 +603,8 @@ watch(
   }
 }
 
-/* AI Response section */
 .ai-response-section {
-  margin-top: 30px;
+  margin: 30px 0 40px;
   padding: 20px;
   background-color: var(--bg-card);
   border-radius: 8px;
@@ -702,7 +637,6 @@ watch(
   scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
 }
 
-/* Custom scrollbar for response content */
 .response-content::-webkit-scrollbar {
   width: 8px;
 }
@@ -721,7 +655,6 @@ watch(
   background-color: rgba(128, 128, 128, 0.6);
 }
 
-/* Saved response info */
 .saved-response-info {
   margin-top: 15px;
   padding-top: 10px;
@@ -729,127 +662,6 @@ watch(
   text-align: right;
 }
 
-/* Markdown content styling */
-.markdown-content {
-  color: var(--text-color);
-}
-
-.markdown-content :deep(.md-h1),
-.markdown-content :deep(.md-h2),
-.markdown-content :deep(.md-h3),
-.markdown-content :deep(.md-h4),
-.markdown-content :deep(.md-h5),
-.markdown-content :deep(.md-h6) {
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--text-color);
-}
-
-.markdown-content :deep(.md-h1) {
-  font-size: 1.8rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.markdown-content :deep(.md-h2) {
-  font-size: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.3rem;
-}
-
-.markdown-content :deep(.md-h3) {
-  font-size: 1.3rem;
-}
-
-.markdown-content :deep(.md-h4) {
-  font-size: 1.1rem;
-}
-
-.markdown-content :deep(.md-p) {
-  margin-bottom: 1rem;
-  line-height: 1.6;
-}
-
-.markdown-content :deep(.md-ul),
-.markdown-content :deep(.md-ol) {
-  margin-bottom: 1rem;
-  padding-left: 2rem;
-}
-
-.markdown-content :deep(.md-li) {
-  margin-bottom: 0.5rem;
-}
-
-.markdown-content :deep(.md-blockquote) {
-  border-left: 4px solid var(--primary-color);
-  padding-left: 1rem;
-  margin-left: 0;
-  margin-right: 0;
-  margin-bottom: 1rem;
-  font-style: italic;
-  color: var(--text-muted);
-}
-
-.markdown-content :deep(.md-hr) {
-  margin: 2rem 0;
-  border: 0;
-  border-top: 1px solid var(--border-color);
-}
-
-.markdown-content :deep(.md-inline-code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  background-color: var(--bg-code);
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.9em;
-  border: 1px solid rgba(var(--primary-color-rgb, 79, 70, 229), 0.2);
-}
-
-.markdown-content :deep(.md-link) {
-  color: var(--primary-color);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--primary-color);
-}
-
-.markdown-content :deep(.md-link:hover) {
-  border-bottom: 1px solid var(--primary-color);
-}
-
-.markdown-content :deep(.md-strong) {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.markdown-content :deep(.md-em) {
-  font-style: italic;
-}
-
-/* Apply syntax highlighting to AI response */
-.markdown-content :deep(pre) {
-  background-color: #0e0023;
-  padding: 15px;
-  border-radius: 5px;
-  overflow-x: auto;
-  margin: 15px 0;
-  position: relative;
-}
-
-.markdown-content :deep(code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  font-size: 0.9rem;
-}
-
-.navigation-buttons {
-  margin-top: 30px;
-  margin-bottom: 30px;
-  display: flex;
-  justify-content: space-between;
-}
-
-/* Make sure form check elements are properly styled for dark mode */
 .form-check-input {
   background-color: var(--bg-content);
   border-color: var(--border-color);
@@ -859,7 +671,6 @@ watch(
   color: var(--text-color);
 }
 
-/* Responsiveness */
 @media (max-width: 768px) {
   .challenge-header {
     flex-direction: column;
@@ -874,18 +685,8 @@ watch(
     margin-bottom: 10px;
   }
 
-  .config-row {
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .config-item {
-    width: 100%;
-    flex: unset;
-  }
-
   .navigation-buttons {
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
   }
 
@@ -898,7 +699,17 @@ watch(
   }
 }
 
-/* Proper dark mode support for alerts */
+/* some markdown styles for AI Code-Review section */
+
+.markdown-content :deep(.md-inline-code) {
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  background-color: var(--bg-code);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+  border: 1px solid rgba(var(--primary-color-rgb, 79, 70, 229), 0.2);
+}
+
 html[data-theme='dark'] .alert-danger,
 body.dark-mode .alert-danger {
   background-color: rgba(220, 53, 69, 0.2);
@@ -906,16 +717,9 @@ body.dark-mode .alert-danger {
   border-color: rgba(220, 53, 69, 0.3);
 }
 
-/* Prism code highlighting in light mode */
 html[data-theme='light'] .markdown-content :deep(pre),
 body.dark-mode .markdown-content :deep(pre) {
   background-color: #1f0527;
-}
-
-/* Prism code highlighting in dark mode */
-html[data-theme='dark'] .scrollable-code,
-body.dark-mode .scrollable-code {
-  background-color: #0f0f28;
 }
 
 html[data-theme='dark'] .markdown-content :deep(pre),
@@ -927,5 +731,10 @@ html[data-theme='dark'] .markdown-content :deep(code),
 body.dark-mode .markdown-content :deep(code) {
   color: #e4e4e4;
   text-shadow: none;
+}
+
+html[data-theme='dark'] .scrollable-code,
+body.dark-mode .scrollable-code {
+  background-color: #0f0f28;
 }
 </style>

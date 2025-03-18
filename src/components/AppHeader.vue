@@ -55,12 +55,6 @@
             Continue
           </button>
 
-          <!-- Mobile Search Icon -->
-          <!-- BUGGY - NEEDS FIXING -->
-          <!-- <button class="search-toggle d-md-none" @click="openSearch" v-if="!searchExpanded">
-            <i class="bi bi-search"></i>
-          </button> -->
-
           <ThemeToggle />
         </div>
       </div>
@@ -90,7 +84,6 @@ const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024
 
 // Check if there's any user progress to determine if we should show the continue button
 const hasProgress = computed(() => {
-  // Look for any completed lesson or if current lesson position is saved
   return (
     progressStore.currentLesson &&
     (progressStore.currentLesson.section > 0 ||
@@ -99,12 +92,11 @@ const hasProgress = computed(() => {
 })
 
 onMounted(() => {
-  // Make sure progress is loaded
+  // set progress state
   if (!progressStore.isLoaded) {
     progressStore.loadProgress()
   }
 
-  // Handle window resize to reset search state
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize)
   }
@@ -137,17 +129,17 @@ const goToCurrentProgress = () => {
 
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value
-  // Directly emit to parent instead of using custom event
   emit('toggle-mobile-menu', mobileMenuOpen.value)
 }
-
-// NEEDS FIXING
-// const openSearch = () => {
-//   searchExpanded.value = true
-// }
 </script>
 
 <style scoped>
+.section-header .bi {
+  font-size: 1.2rem;
+}
+h1.gradient-text {
+  font-weight: 300;
+}
 .app-header {
   padding: 0.5rem 0.75rem;
   position: fixed;

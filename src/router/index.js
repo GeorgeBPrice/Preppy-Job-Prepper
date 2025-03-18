@@ -2,7 +2,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LessonView from '../views/LessonView.vue'
-import ChallengeSummary from '../views/ChallengeSummary.vue'
+import ChallengeView from '../views/ChallengeView.vue'
 import InterviewQuestionsView from '../views/InterviewQuestionsView.vue'
 
 const router = createRouter({
@@ -22,7 +22,7 @@ const router = createRouter({
     {
       path: '/section/:sectionId/challenge',
       name: 'challenge',
-      component: ChallengeSummary,
+      component: ChallengeView,
       props: true,
     },
     {

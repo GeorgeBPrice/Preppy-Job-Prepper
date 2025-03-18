@@ -145,6 +145,19 @@ const continueProgress = () => {
   color: var(--text-color);
 }
 
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  overflow-x: hidden;
+  padding-right: 0 !important;
+  background: linear-gradient(90deg, #e3ffe7 0%, #d9e7ff 100%);
+}
+
+body.dark-mode {
+  background-image: linear-gradient(135deg, #111827 0%, #1d5497 100%);
+}
+
 .hero-section {
   text-align: center;
   padding: 50px 0;
@@ -229,6 +242,10 @@ const continueProgress = () => {
   box-shadow: var(--shadow-sm);
 }
 
+.card-completed {
+  background-color: var(--bg-card-completed);
+}
+
 .card:hover {
   transform: translateY(-8px);
   box-shadow: var(--shadow-md);
@@ -268,7 +285,7 @@ const continueProgress = () => {
 .completion-badge {
   margin-left: 10px;
   color: var(--success-color);
-  font-size: 1.1rem;
+  font-size: 1.7rem;
 }
 
 .card-body {
@@ -329,7 +346,7 @@ const continueProgress = () => {
 }
 
 .lesson-completed {
-  color: var(--success-color);
+  color: var(--primary-color);
   margin-left: 10px;
   font-size: 0.9rem;
 }

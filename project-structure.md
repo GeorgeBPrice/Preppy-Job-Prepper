@@ -61,7 +61,7 @@
     - [markdownFormatter.js](#markdownformatterjs)
     - [storage.js](#storagejs)
   - [views](#views)
-    - [ChallengeSummary.vue](#challengesummaryvue)
+    - [ChallengeView.vue](#challengeviewvue)
     - [HomeView.vue](#homeviewvue)
     - [InterviewQuestionsView.vue](#interviewquestionsviewvue)
     - [LessonView.vue](#lessonviewvue)

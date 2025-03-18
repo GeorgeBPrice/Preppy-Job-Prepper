@@ -268,7 +268,6 @@ const resetCode = () => {
   background-color: var(--bg-sidebar);
 }
 
-/* Preview container with limited height */
 .preview-container {
   position: relative;
   border-radius: 5px;
@@ -282,8 +281,7 @@ const resetCode = () => {
   border-radius: 5px;
   padding: 1rem;
   overflow-y: auto;
-  /* Set height based on line-height to show around 10 lines */
-  max-height: calc(1.5rem * 10 + 2rem); /* line-height * 10 lines + padding */
+  max-height: calc(1.5rem * 10 + 2rem);
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
 }
@@ -306,22 +304,6 @@ const resetCode = () => {
 
 .limited-height-preview::-webkit-scrollbar-thumb:hover {
   background-color: rgba(128, 128, 128, 0.6);
-}
-
-/* Override to ensure code blocks display properly */
-:deep(pre) {
-  margin: 0;
-}
-
-:deep(code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  white-space: pre;
-  word-spacing: normal;
-  word-break: normal;
-  word-wrap: normal;
-  line-height: 1.5;
-  tab-size: 4;
-  hyphens: none;
 }
 
 .editor-footer {
