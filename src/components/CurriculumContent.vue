@@ -59,7 +59,7 @@
         :id="`section-${index}`"
       >
         <h4>{{ sectionContent.title }}</h4>
-        <div v-html="sectionContent.explanation" class="explanation"></div>
+        <div v-html="sectionContent.explanation" class="explanation" ref="explanationContent"></div>
 
         <div v-if="sectionContent.codeExample" class="code-example">
           <h5>Interview Focus Examples:</h5>
@@ -78,7 +78,7 @@
         </div>
 
         <div v-if="sectionContent.exercise" class="exercise">
-          <h5>Exercise:</h5>
+          <h5>Prep Exercise:</h5>
           <p>{{ sectionContent.exercise.instructions }}</p>
         </div>
       </div>
@@ -139,9 +139,10 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted, onUpdated } from 'vue'
+import { computed, ref, watch, onMounted, onUpdated, nextTick } from 'vue'
 import { getSection } from '../data/curriculum'
 import { useProgressStore } from '../store/progress'
+import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
 
 // Custom syntax highlighting styling for better readability
@@ -165,7 +166,7 @@ const props = defineProps({
 })
 
 const progressStore = useProgressStore()
-const copySuccess = ref(false)
+const explanationContent = ref(null)
 
 const section = computed(() => {
   try {
@@ -202,12 +203,17 @@ const challenge = computed(() => {
 // Using a ref for the checkbox state to keep both checkboxes in sync
 const isLessonCompleted = ref(false)
 
-// Initialize checkbox state
+// Initialize checkbox state and add copy buttons to explanation code blocks
 onMounted(() => {
   checkCompletion()
 
   // Apply custom Prism styling directly
   applyCustomPrismStyling()
+
+  // Add copy buttons to explanation code blocks after DOM update
+  nextTick(() => {
+    addCopyButtonsToExplanationCode()
+  })
 })
 
 // Watch for props changes to update completion status
@@ -215,6 +221,10 @@ watch(
   () => [props.sectionId, props.lessonId],
   () => {
     checkCompletion()
+    // Re-add copy buttons when lesson changes
+    nextTick(() => {
+      addCopyButtonsToExplanationCode()
+    })
   },
 )
 
@@ -226,6 +236,48 @@ watch(
   },
   { deep: true },
 )
+
+// Function to add copy buttons to explanation code blocks
+// This function is called after the DOM is updated
+// Because VUE is rendering unknown elements using 'v-if' as random elements (lesson descriptions)
+// that may or may not have code blocks, we need to then stylise these blocks of 'code' examples AFTER the dom renders.
+const addCopyButtonsToExplanationCode = () => {
+  const sections = document.querySelectorAll('.explanation pre')
+
+  sections.forEach((preElement) => {
+    // Check if button already exists to avoid duplicates
+    if (!preElement.parentElement.querySelector('.explanation-copy-btn')) {
+      // Create wrapper if needed
+      if (preElement.parentElement.style.position !== 'relative') {
+        preElement.parentElement.style.position = 'relative'
+      }
+
+      // Create copy button
+      const copyButton = document.createElement('div')
+      copyButton.className = 'explanation-copy-btn'
+      copyButton.title = 'Copy code'
+
+      // Create icon
+      const icon = document.createElement('i')
+      icon.className = 'bi bi-clipboard'
+      copyButton.appendChild(icon)
+
+      // Add click event
+      copyButton.addEventListener('click', () => {
+        const codeText = preElement.textContent
+        copyCode(codeText)
+        copyButton.style.transition = 'background-color 0.3s ease'
+        copyButton.style.backgroundColor = 'white'
+        setTimeout(() => {
+          copyButton.style.backgroundColor = ''
+        }, 300)
+      })
+
+      // Add button to parent of pre element
+      preElement.parentElement.appendChild(copyButton)
+    }
+  })
+}
 
 // Function to scroll to a specific section
 const scrollToSection = (sectionId) => {
@@ -278,158 +330,15 @@ const escapeHtml = (unsafe) => {
 
 // Function to highlight code using Prism
 const highlightedCode = (code) => {
-  // Apply custom syntax highlighting
   const escapedCode = escapeHtml(code)
 
   // Return escaped code (Prism will highlight it after mounting)
   return escapedCode
 }
 
-// Function to copy code to clipboard
+// Copy code to clipboard, from explanations and challenges
 const copyCode = (code) => {
-  navigator.clipboard.writeText(code).then(
-    () => {
-      copySuccess.value = true
-
-      // Show a toast or notification here if desired
-      console.log('Code copied to clipboard')
-
-      // Reset after a brief period
-      setTimeout(() => {
-        copySuccess.value = false
-      }, 2000)
-    },
-    (err) => {
-      console.error('Could not copy code: ', err)
-    },
-  )
-}
-
-// Apply custom Prism styling
-const applyCustomPrismStyling = () => {
-  // This injects a more readable style via JavaScript
-  const styleElement = document.createElement('style')
-  styleElement.textContent = `
-    /* Custom Syntax Highlighting for Improved Readability */
-    :root {
-      --code-comment: #b3bcc6;
-      --code-keyword: #5a67d8;
-      --code-function: #3182ce;
-      --code-string: #38a169;
-      --code-number: #d69e2e;
-      --code-operator: #e53e3e;
-      --code-variable: #2b6cb0;
-      --code-class: #805ad5;
-      --code-punctuation: #718096;
-      --code-regex: #319795;
-      --code-attr-name: #dd6b20;
-      --code-attr-value: #38a169;
-    }
-    
-    [data-theme='dark'] {
-      --code-comment: #b3bcc6;
-      --code-keyword: #7f9cf5;
-      --code-function: #63b3ed;
-      --code-string: #68d391;
-      --code-number: #f6e05e;
-      --code-operator: #fc8181;
-      --code-variable: #90cdf4;
-      --code-class: #b794f4;
-      --code-punctuation: #cbd5e0;
-      --code-regex: #4fd1c5;
-      --code-attr-name: #fbd38d;
-      --code-attr-value: #68d391;
-    }
-    
-    /* Tokens styling */
-    .token.comment,
-    .token.prolog,
-    .token.doctype,
-    .token.cdata {
-      color: var(--code-comment);
-      font-style: italic;
-    }
-    
-    .token.namespace {
-      opacity: 0.8;
-    }
-    
-    .token.keyword {
-      color: var(--code-keyword);
-      font-weight: 600;
-    }
-    
-    .token.function {
-      color: var(--code-function);
-    }
-    
-    .token.string {
-      color: var(--code-string);
-    }
-    
-    .token.number,
-    .token.boolean {
-      color: var(--code-number);
-    }
-    
-    .token.operator {
-      color: var(--code-operator);
-    }
-    
-    .token.property,
-    .token.variable,
-    .token.symbol {
-      color: var(--code-variable);
-    }
-    
-    .token.selector,
-    .token.attr-name,
-    .token.builtin {
-      color: var(--code-attr-name);
-    }
-    
-    .token.attr-value {
-      color: var(--code-attr-value);
-    }
-    
-    .token.entity,
-    .token.url,
-    .token.regex {
-      color: var(--code-regex);
-    }
-    
-    .token.important {
-      color: var(--code-operator);
-      font-weight: bold;
-    }
-    
-    .token.punctuation {
-      color: var(--code-punctuation);
-    }
-
-    /* Line highlighting */
-    .code-line {
-      display: block;
-      line-height: 1.5;
-      position: relative;
-    }
-    
-    .code-line:not(:last-child) {
-      margin-bottom: 3px;
-    }
-    
-    /* Syntax block styling */
-    .syntax-block {
-      border-left: 3px solid rgba(0,0,0,0.1);
-      padding-left: 8px;
-      margin: 5px 0;
-    }
-    
-    [data-theme='dark'] .syntax-block {
-      border-left-color: rgba(255,255,255,0.1);
-    }
-  `
-  document.head.appendChild(styleElement)
+  navigator.clipboard.writeText(code)
 }
 
 // Apply Prism highlighting after the component updates
@@ -439,6 +348,10 @@ onMounted(() => {
 
 onUpdated(() => {
   Prism.highlightAll()
+  // Re-add copy buttons after DOM updates
+  nextTick(() => {
+    addCopyButtonsToExplanationCode()
+  })
 })
 </script>
 

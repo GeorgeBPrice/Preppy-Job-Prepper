@@ -11,7 +11,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useThemeStore } from '../store/theme'
+import { useThemeStore } from '../theme/theme'
 
 const themeStore = useThemeStore()
 
