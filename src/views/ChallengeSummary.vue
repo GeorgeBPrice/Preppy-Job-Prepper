@@ -187,7 +187,7 @@ import CodeEditor from '../components/CodeEditor.vue'
 import BackToTop from '../components/BackToTop.vue'
 import Prism from 'prismjs'
 import { validateApiKey, testApiConnection, MODEL_MAPPINGS } from '../utils/aiService'
-import { formatMarkdown } from '../utils/markdownFormatter'
+import { formatMarkdown } from '../theme/markdownFormatter'
 
 const route = useRoute()
 const router = useRouter()
@@ -906,15 +906,21 @@ body.dark-mode .alert-danger {
   border-color: rgba(220, 53, 69, 0.3);
 }
 
-/* Fix for Prism code highlighting in dark mode */
+/* Prism code highlighting in light mode */
+html[data-theme='light'] .markdown-content :deep(pre),
+body.dark-mode .markdown-content :deep(pre) {
+  background-color: #1f0527;
+}
+
+/* Prism code highlighting in dark mode */
 html[data-theme='dark'] .scrollable-code,
 body.dark-mode .scrollable-code {
-  background-color: #1e1e3f;
+  background-color: #0f0f28;
 }
 
 html[data-theme='dark'] .markdown-content :deep(pre),
 body.dark-mode .markdown-content :deep(pre) {
-  background-color: #1e1e3f;
+  background-color: #1b0329;
 }
 
 html[data-theme='dark'] .markdown-content :deep(code),

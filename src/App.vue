@@ -29,7 +29,7 @@ import AppSidebar from './components/AppSidebar.vue'
 import BackToTop from './components/BackToTop.vue'
 import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
 import { useProgressStore } from './store/progress'
-import { useThemeStore } from './store/theme'
+import { useThemeStore } from './theme/theme'
 
 const progressStore = useProgressStore()
 const themeStore = useThemeStore()

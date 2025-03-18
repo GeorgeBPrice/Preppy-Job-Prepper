@@ -5,15 +5,13 @@ import router from './router'
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue-3/dist/bootstrap-vue-3.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-// import InterviewQuestions from './components/InterviewQuestions.vue'
 
 // Import theme stylesheet
-import './assets/styles/theme.css'
+import './theme/styles/theme.css'
 import './assets/styles/main.css'
 
 // Import Prism.js for syntax highlighting
-import 'prismjs/themes/prism-tomorrow.css' // Choose your preferred theme
-//import Prism from 'prismjs'
+import 'prismjs/themes/prism-tomorrow.css'
 
 // Add additional languages - include the ones you need
 import 'prismjs/components/prism-javascript'
@@ -33,7 +31,7 @@ app.use(pinia)
 app.use(router)
 
 // Initialize theme
-import { useThemeStore } from './store/theme'
+import { useThemeStore } from './theme/theme'
 
 app.mount('#app')
 

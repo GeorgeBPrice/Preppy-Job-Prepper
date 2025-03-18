@@ -263,7 +263,7 @@ const resetCode = () => {
 }
 
 .editor-preview {
-  padding: 0 10px;
+  padding: 10px;
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-sidebar);
 }
@@ -334,6 +334,6 @@ const resetCode = () => {
 /* Dark mode adjustments */
 html[data-theme='dark'] .limited-height-preview,
 body.dark-mode .limited-height-preview {
-  background-color: #1e1e3f;
+  background-color: #101025;
 }
 </style>
