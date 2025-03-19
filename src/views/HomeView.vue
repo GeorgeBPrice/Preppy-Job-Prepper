@@ -18,6 +18,7 @@
       </div>
     </div>
 
+    <!-- Curriculum Lessons Overview -->
     <div class="curriculum-overview">
       <h2 class="section-title">Course Overview</h2>
       <p class="section-description core">
@@ -26,7 +27,7 @@
 
       <div class="section-cards">
         <div v-for="(section, index) in curriculum" :key="index" class="section-card">
-          <div class="card">
+          <div :class="['card', { 'card-completed': isSectionCompleted(index) }]">
             <div class="card-header">
               <div class="section-number">{{ index + 1 }}</div>
               <h3 class="card-title">
@@ -54,7 +55,13 @@
                 :to="{ name: 'lesson', params: { sectionId: index + 1, lessonId: 1 } }"
                 class="btn btn-primary start-btn"
               >
-                <i class="bi bi-play-fill me-1"></i> Start Section
+                <template v-if="getSectionStatus(index) === 'completed'">
+                  <i class="bi bi-check-circle-fill me-1"></i> Completed
+                </template>
+                <template v-else-if="getSectionStatus(index) === 'in-progress'">
+                  <i class="bi bi-play-fill me-1"></i> Continue Lesson
+                </template>
+                <template v-else> <i class="bi bi-play-fill me-1"></i> Start Lesson </template>
               </router-link>
             </div>
           </div>
@@ -62,6 +69,7 @@
       </div>
     </div>
 
+    <!-- Job Ready Section -->
     <div class="job-ready-section">
       <h2 class="section-title">Prepare for JavaScript Interview Success</h2>
       <p class="section-description">
@@ -109,8 +117,12 @@ import { curriculum } from '../data/curriculum'
 const router = useRouter()
 const progressStore = useProgressStore()
 
+// Check if there is any progress (any completed lessons or challenges)
 const hasProgress = computed(() => {
-  return progressStore.currentLesson.section > 0
+  return (
+    Object.keys(progressStore.completedLessons).length > 0 ||
+    Object.keys(progressStore.completedChallenges).length > 0
+  )
 })
 
 const isSectionCompleted = (sectionIndex) => {
@@ -121,19 +133,54 @@ const isLessonCompleted = (sectionIndex, lessonIndex) => {
   return progressStore.isLessonCompleted(sectionIndex, lessonIndex)
 }
 
+// Return the status of a section: 'not-started', 'in-progress', or 'completed'
+const getSectionStatus = (sectionIndex) => {
+  if (progressStore.isSectionCompleted(sectionIndex)) {
+    return 'completed'
+  }
+  const sectionLessons = curriculum[sectionIndex].lessons
+  for (let i = 0; i < sectionLessons.length; i++) {
+    if (progressStore.isLessonCompleted(sectionIndex, i)) {
+      return 'in-progress'
+    }
+  }
+  return 'not-started'
+}
+
+// Starts from the very first lesson :D
 const startLearning = () => {
   router.push({ name: 'lesson', params: { sectionId: 1, lessonId: 1 } })
 }
 
+// Continues to the next uncompleted lesson or challenge
 const continueProgress = () => {
-  const { section, lesson } = progressStore.currentLesson
-  router.push({
-    name: 'lesson',
-    params: {
-      sectionId: section + 1,
-      lessonId: lesson + 1,
-    },
-  })
+  const nextItem = progressStore.nextUncompletedItem
+  if (nextItem) {
+    if (nextItem.type === 'lesson') {
+      router.push({
+        name: 'lesson',
+        params: {
+          sectionId: nextItem.section + 1,
+          lessonId: nextItem.lesson + 1,
+        },
+      })
+    } else if (nextItem.type === 'challenge') {
+      router.push({
+        name: 'challenge',
+        params: {
+          sectionId: nextItem.section + 1,
+        },
+      })
+    }
+  } else {
+    const lastSectionIndex = curriculum.length - 1
+    router.push({
+      name: 'challenge',
+      params: {
+        sectionId: lastSectionIndex + 1,
+      },
+    })
+  }
 }
 </script>
 
@@ -290,6 +337,8 @@ body.dark-mode {
 
 .card-body {
   padding: 1rem 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-text {
@@ -301,6 +350,7 @@ body.dark-mode {
 .lesson-topics {
   margin-top: 20px;
   margin-bottom: 25px;
+  flex-grow: 1;
 }
 
 .lesson-topics h4 {
@@ -353,6 +403,7 @@ body.dark-mode {
 
 .start-btn {
   width: 100%;
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: center;

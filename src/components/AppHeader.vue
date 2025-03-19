@@ -74,6 +74,7 @@ import SearchBar from './SearchBar.vue'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
+import { curriculum } from '../data/curriculum'
 
 const emit = defineEmits(['toggle-mobile-menu'])
 const router = useRouter()
@@ -118,13 +119,34 @@ const handleResize = () => {
 }
 
 const goToCurrentProgress = () => {
-  router.push({
-    name: 'lesson',
-    params: {
-      sectionId: progressStore.currentLesson.section + 1,
-      lessonId: progressStore.currentLesson.lesson + 1,
-    },
-  })
+  const nextItem = progressStore.nextUncompletedItem
+  if (nextItem) {
+    if (nextItem.type === 'lesson') {
+      router.push({
+        name: 'lesson',
+        params: {
+          sectionId: nextItem.section + 1,
+          lessonId: nextItem.lesson + 1,
+        },
+      })
+    } else if (nextItem.type === 'challenge') {
+      router.push({
+        name: 'challenge',
+        params: {
+          sectionId: nextItem.section + 1,
+        },
+      })
+    }
+  } else {
+    // If all items are completed, go to the last challenge
+    const lastSectionIndex = curriculum.length - 1
+    router.push({
+      name: 'challenge',
+      params: {
+        sectionId: lastSectionIndex + 1,
+      },
+    })
+  }
 }
 
 const toggleMobileMenu = () => {

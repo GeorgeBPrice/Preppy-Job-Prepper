@@ -21,15 +21,12 @@ export const useProgressStore = defineStore('progress', {
       let completedItems = 0
 
       curriculum.forEach((section, sectionIndex) => {
-        // Count lessons
         section.lessons.forEach((_, lessonIndex) => {
           totalItems++
           if (state.completedLessons[sectionIndex]?.[lessonIndex]) {
             completedItems++
           }
         })
-
-        // Count challenge
         totalItems++
         if (state.completedChallenges[sectionIndex]) {
           completedItems++
@@ -40,12 +37,27 @@ export const useProgressStore = defineStore('progress', {
     },
 
     hasAnyProgress: (state) => {
-      // Check if the user has made any progress in the app
       return (
         state.currentLesson.section > 0 ||
         Object.keys(state.completedLessons).length > 0 ||
         Object.keys(state.completedChallenges).length > 0
       )
+    },
+
+    // Find the next uncompleted item (not checked by user)
+    nextUncompletedItem: (state) => {
+      for (let sectionIndex = 0; sectionIndex < curriculum.length; sectionIndex++) {
+        const section = curriculum[sectionIndex]
+        for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
+          if (!state.completedLessons[sectionIndex]?.[lessonIndex]) {
+            return { type: 'lesson', section: sectionIndex, lesson: lessonIndex }
+          }
+        }
+        if (!state.completedChallenges[sectionIndex]) {
+          return { type: 'challenge', section: sectionIndex }
+        }
+      }
+      return null
     },
   },
 
@@ -59,19 +71,14 @@ export const useProgressStore = defineStore('progress', {
         this.challengeCode = data.challengeCode || {}
         this.currentLesson = data.currentLesson || { section: 0, lesson: 0 }
       }
-
-      // If there's no current lesson set but the user has completed lessons,
-      // set the current lesson to the first completed one
       if (this.currentLesson.section === 0 && Object.keys(this.completedLessons).length > 0) {
         const firstSectionIndex = parseInt(Object.keys(this.completedLessons)[0])
         const firstLessonIndex = parseInt(Object.keys(this.completedLessons[firstSectionIndex])[0])
-
         this.currentLesson = {
           section: firstSectionIndex,
           lesson: firstLessonIndex,
         }
       }
-
       this.isLoaded = true
     },
 
@@ -83,7 +90,6 @@ export const useProgressStore = defineStore('progress', {
         challengeCode: this.challengeCode,
         currentLesson: this.currentLesson,
       }
-
       saveToStorage(data)
     },
 
@@ -91,12 +97,8 @@ export const useProgressStore = defineStore('progress', {
       if (!this.completedLessons[sectionIndex]) {
         this.completedLessons[sectionIndex] = {}
       }
-
       this.completedLessons[sectionIndex][lessonIndex] = true
-
-      // Update current lesson
       this.updateCurrentLesson(sectionIndex, lessonIndex)
-
       this.saveProgress()
     },
 
@@ -104,18 +106,14 @@ export const useProgressStore = defineStore('progress', {
       if (this.completedLessons[sectionIndex]) {
         delete this.completedLessons[sectionIndex][lessonIndex]
       }
-
       this.saveProgress()
     },
 
     completeSectionChallenge(sectionIndex) {
       this.completedChallenges[sectionIndex] = true
-
-      // Move to next section
       if (sectionIndex < curriculum.length - 1) {
         this.updateCurrentLesson(sectionIndex + 1, 0)
       }
-
       this.saveProgress()
     },
 
@@ -128,7 +126,6 @@ export const useProgressStore = defineStore('progress', {
       if (!this.lessonCode[sectionIndex]) {
         this.lessonCode[sectionIndex] = {}
       }
-
       this.lessonCode[sectionIndex][lessonIndex] = code
       this.saveProgress()
     },
@@ -157,19 +154,14 @@ export const useProgressStore = defineStore('progress', {
     isSectionCompleted(sectionIndex) {
       const section = curriculum[sectionIndex]
       if (!section) return false
-
-      // Check if all lessons are completed
       for (let i = 0; i < section.lessons.length; i++) {
         if (!this.isLessonCompleted(sectionIndex, i)) {
           return false
         }
       }
-
-      // Check if the challenge is completed
       if (!this.isChallengeCompleted(sectionIndex)) {
         return false
       }
-
       return true
     },
 
