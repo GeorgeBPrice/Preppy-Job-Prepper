@@ -2,6 +2,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LessonView from '../views/LessonView.vue'
+import ShortlistView from '../views/ShortlistView.vue'
 import ChallengeView from '../views/ChallengeView.vue'
 import InterviewQuestionsView from '../views/InterviewQuestionsView.vue'
 
@@ -31,7 +32,18 @@ const router = createRouter({
       component: InterviewQuestionsView,
       props: true,
     },
-    // routes for deep linking to specific sections/questions
+    {
+      path: '/minicourse-recapper',
+      name: 'shortlist',
+      component: ShortlistView,
+      props: true,
+    },
+    {
+      path: '/minicourse-recappert/:lessonId',
+      name: 'shortlist-lesson',
+      component: ShortlistView,
+      props: true,
+    },
     {
       path: '/interview-questions/:section',
       name: 'interview-questions-section',

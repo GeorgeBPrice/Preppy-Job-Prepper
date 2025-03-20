@@ -21,10 +21,27 @@
 
     <!-- Curriculum Menu -->
     <div class="sidebar-content" ref="sidebarContent">
+      <!-- Prepper section -->
+      <div :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }">
+        <label>{{ isCollapsed ? 'Recap' : 'Quick Recap' }}</label>
+      </div>
       <div class="section-item interview-questions-item">
+        <!-- Shortlist Prepper -->
+        <router-link
+          to="/minicourse-recapper"
+          class="interview-nav-link"
+          :class="{ active: isShortListActive(), collapsed: isCollapsed }"
+          title="Minicourse Recapper"
+          @click="handleSectionClick()"
+        >
+          <span class="section-icon"><i class="bi bi-list-check"></i></span>
+          <span class="section-title" v-show="!isCollapsed">Minicourse Recapper</span>
+        </router-link>
+
+        <!-- Interview Questions -->
         <router-link
           to="/interview-questions"
-          class="interview-nav-link"
+          class="interview-nav-link last"
           :class="{ active: isInterviewActive(), collapsed: isCollapsed }"
           title="Prep Interview Questions"
           @click="handleSectionClick()"
@@ -35,6 +52,9 @@
       </div>
 
       <!-- Curriculum Sections -->
+      <div :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }">
+        <label>{{ isCollapsed ? 'Course' : 'Full Prepper Course' }}</label>
+      </div>
       <div
         v-for="(section, index) in curriculum"
         :key="`section-${index}`"
@@ -153,16 +173,24 @@ onMounted(async () => {
 const handleSectionClick = (sectionIndex) => {
   // If sidebar is collapsed, expand it first then open the section
   if (props.isCollapsed) {
-    // toggles the sidebar to expand
-    emit('toggle')
+    const menuLinkURL = sectionIndex.RouterLink
+    // only the lessons sections exand the menu, as they have sub menu items
+    if (
+      menuLinkURL !== '/minicourse-recapper' ||
+      menuLinkURL !== '/interview-questions' ||
+      menuLinkURL !== '/'
+    ) {
+      // toggles the sidebar to expand
+      emit('toggle')
 
-    // expands the menu section
-    nextTick(() => {
-      openSections.value = [sectionIndex]
+      // then expand the menu sub section
       nextTick(() => {
-        scrollToSection(sectionIndex)
+        openSections.value = [sectionIndex]
+        nextTick(() => {
+          scrollToSection(sectionIndex)
+        })
       })
-    })
+    }
   } else {
     toggleSection(sectionIndex)
   }
@@ -239,6 +267,10 @@ const isInterviewActive = () => {
   )
 }
 
+const isShortListActive = () => {
+  return route.name === '/minicourse-recapper'
+}
+
 const isSectionCompleted = (sectionIndex) => {
   return progressStore.isSectionCompleted(sectionIndex)
 }
@@ -296,6 +328,19 @@ const isChallengeCompleted = (sectionIndex) => {
 
 .sidebar.collapsed {
   width: 60px;
+}
+
+.menu-label label {
+  padding: 0 10px;
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.menu-label.collapsed label {
+  font-size: 0.65rem;
+  padding: 0;
 }
 
 /* Improved scrollbar for sidebar */
@@ -518,7 +563,7 @@ const isChallengeCompleted = (sectionIndex) => {
 /* Updated interview questions styles */
 .interview-questions-item {
   margin-bottom: 20px;
-  padding: 10px 0;
+  padding: 0;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -535,6 +580,10 @@ const isChallengeCompleted = (sectionIndex) => {
   text-decoration: none;
 }
 
+.interview-nav-link.last {
+  margin-top: 10px;
+}
+
 /* Handle collapsed state for interview link */
 .interview-nav-link.collapsed {
   justify-content: center;
@@ -548,6 +597,10 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .interview-nav-link.active {
+  background-color: var(--sidebar-active);
+}
+
+a.router-link-active.router-link-exact-active.interview-nav-link {
   background-color: var(--sidebar-active);
 }
 

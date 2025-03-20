@@ -563,11 +563,15 @@ console.log(isDeepEqual([1, [2, 3]], [1, [2, 3]])); // true`,
         
         <h4>Logical AND, OR, and NOT</h4>
         <div class="code-example">
-          <pre><code>// Logical AND (&&) - returns first falsy or last truthy
+          <pre><code>// Logical AND (&&) - returns first falsy value or last truthy value
+// if both sides are truthy, returns the last truthy value
+// if either side is falsy, returns the first falsy value
 console.log(true && false);    // false
 console.log('hello' && 42);    // 42 (last value, all truthy)
 
-// Logical OR (||) - returns first truthy or last falsy
+// Logical OR (||) - returns first truthy value or last falsy value
+// if either side is truthy, returns the first truthy value
+// if both sides are falsy, returns the last falsy value
 console.log(false || true);    // true
 console.log(null || 'default'); // 'default' (first truthy)
 
@@ -581,7 +585,9 @@ console.log(!!'hello');  // true (double negation → boolean)</code></pre>
         <div class="code-example">
           <pre><code>// Nullish coalescing (??) - considers only null/undefined falsy
 console.log(0 || 'default');     // 'default' (0 is falsy)
-console.log(0 ?? 'default');     // 0 (0 is not null/undefined)
+console.log(0 ?? 'default');     // 0 (0 is not null/undefined, so it's returned as it is)
+console.log(null ?? "default"); // 'default' (null is falsy)
+console.log(undefined ?? "default"); // 'default' (undefined is falsy)
 
 // Optional chaining (?.) - safe property access
 const user = { profile: { name: 'Alice' } };
@@ -600,8 +606,7 @@ console.log(user?.settings?.theme); // undefined, no error</code></pre>
           </ul>
         </div>
       `,
-          codeExample: `
-          // Building a user profile with logical operators
+          codeExample: `// Building a user profile with logical operators
 function createUserProfile(userData) {
   // Default options with nullish coalescing
   const { 

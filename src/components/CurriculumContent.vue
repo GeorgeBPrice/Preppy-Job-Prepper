@@ -1,7 +1,7 @@
 <template>
   <div class="curriculum-content" v-if="section">
     <!-- Top "Mark as completed" checkbox -->
-    <div class="top-completion-status" v-if="lesson && !isChallenge">
+    <div class="top-completion-status" v-if="lesson && !isChallenge && !isShortlistRoute">
       <div class="form-check">
         <input
           class="form-check-input"
@@ -140,7 +140,9 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onUpdated, nextTick } from 'vue'
-import { getSection } from '../data/curriculum'
+import { useRoute } from 'vue-router'
+import { getSection as getMainSection } from '../data/curriculum'
+import { getSection as getShortlistSection } from '../data/curriculum-shortlist'
 import { useProgressStore } from '../store/progress'
 import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
@@ -165,8 +167,23 @@ const props = defineProps({
   },
 })
 
+const route = useRoute()
 const progressStore = useProgressStore()
 const explanationContent = ref(null)
+
+// Check if we're on the shortlist route
+const isShortlistRoute = computed(() => {
+  return route.path.includes('/minicourse-recapper')
+})
+
+// Choose the appropriate getSection function based on the route
+const getSection = (sectionId) => {
+  if (isShortlistRoute.value) {
+    return getShortlistSection(sectionId)
+  } else {
+    return getMainSection(sectionId)
+  }
+}
 
 const section = computed(() => {
   try {
@@ -200,7 +217,7 @@ const challenge = computed(() => {
   return section.value.challenge
 })
 
-// Using a ref for the checkbox state to keep both checkboxes in sync
+// Using a ref for the checkbox state to keep both checkboxes in sync (at top and bottom of page)
 const isLessonCompleted = ref(false)
 
 // Initialize checkbox state and add copy buttons to explanation code blocks
@@ -215,18 +232,6 @@ onMounted(() => {
     addCopyButtonsToExplanationCode()
   })
 })
-
-// Watch for props changes to update completion status
-watch(
-  () => [props.sectionId, props.lessonId],
-  () => {
-    checkCompletion()
-    // Re-add copy buttons when lesson changes
-    nextTick(() => {
-      addCopyButtonsToExplanationCode()
-    })
-  },
-)
 
 // Watch for progress store changes
 watch(
@@ -701,6 +706,10 @@ onUpdated(() => {
 
 .prepper-summary li {
   margin-bottom: 0.5rem;
+}
+
+.form-check {
+  background-color: var(--primary-gradient);
 }
 
 :deep(.prepper-summary h4) {
