@@ -21,6 +21,8 @@
       </main>
     </div>
   </div>
+  <!-- Modal HTML for Congratulations Popup -->
+  <CourseCompletedModal />
 </template>
 
 <script setup>
@@ -30,6 +32,8 @@ import BackToTop from './components/BackToTop.vue'
 import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
 import { useProgressStore } from './store/progress'
 import { useThemeStore } from './theme/theme'
+import CourseCompletedModal from '@/components/CourseCompletedModal.vue'
+import useCongratulationsModal from './scripts/useCongratulationsModal'
 
 const progressStore = useProgressStore()
 const themeStore = useThemeStore()
@@ -80,6 +84,20 @@ const toggleSidebar = () => {
     isMobileMenuOpen.value = false
   }
 }
+
+// Watch progress and trigger completion logic
+watch(
+  () => Math.round(progressStore.overallProgress * 100),
+  (percentage) => {
+    if (percentage <= 99) {
+      localStorage.removeItem('congratulated')
+    }
+    if (percentage === 100 && !localStorage.getItem('congratulated')) {
+      // call script to fire off congrats modal
+      useCongratulationsModal()
+    }
+  },
+)
 
 onMounted(() => {
   progressStore.loadProgress()
@@ -160,6 +178,12 @@ onMounted(() => {
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 900;
     transition: opacity 0.3s;
+  }
+  /* congratulations */
+  button.close {
+    border: none;
+    background: none;
+    font-size: 2em;
   }
 }
 </style>

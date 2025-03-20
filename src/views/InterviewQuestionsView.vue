@@ -73,6 +73,11 @@ onMounted(() => {
 
 <style scoped>
 .interview-view {
-  padding: 30px 0;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 400px;
+  position: relative;
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
 }
 </style>

@@ -22,6 +22,8 @@
   --bg-code: #ece9ef;
   --bg-exercise: #ece9ef;
   --bg-code-example: #ece9ef;
+  --bs-body-bg: #ffffff;
+  --bg-congrats: rgba(255, 255, 255, 0.9);
 
   --border-color: #dee2e6;
   --hover-color: rgba(0, 0, 0, 0.05);
@@ -68,6 +70,8 @@
   --bg-code: #000000;
   --bg-exercise: #2d3748;
   --bg-code-example: #000000;
+  --bs-body-bg: #171f2d;
+  --bg-congrats: rgba(23, 31, 45, 0.96);
 
   --border-color: #374151;
   --lida-hover-color: #7120e1;

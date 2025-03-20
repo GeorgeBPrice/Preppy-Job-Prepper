@@ -7,13 +7,15 @@
         Application Developer role job interviews
       </p>
       <div class="action-buttons">
-        <button @click="startLearning" class="btn btn-lg btn-primary">Start Learning</button>
         <button
-          v-if="hasProgress"
-          @click="continueProgress"
-          class="btn btn-lg btn-outline-primary ms-3"
+          v-if="progressPercentage === 0"
+          @click="startLearning"
+          class="btn btn-lg btn-primary"
         >
-          Continue Progress
+          Start Learning
+        </button>
+        <button v-if="hasProgress" @click="continueProgress" class="btn btn-lg btn-primary ms-3">
+          {{ progressPercentage === 100 ? 'Prepper Course Completed!' : 'Continue Progress' }}
         </button>
       </div>
     </div>
@@ -117,6 +119,10 @@ import { curriculum } from '../data/curriculum'
 const router = useRouter()
 const progressStore = useProgressStore()
 
+const progressPercentage = computed(() => {
+  return Math.round(progressStore.overallProgress * 100)
+})
+
 // Check if there is any progress (any completed lessons or challenges)
 const hasProgress = computed(() => {
   return (
@@ -208,7 +214,6 @@ body.dark-mode {
 .hero-section {
   text-align: center;
   padding: 50px 0;
-  margin-bottom: 40px;
 }
 
 .hero-section h1 {
