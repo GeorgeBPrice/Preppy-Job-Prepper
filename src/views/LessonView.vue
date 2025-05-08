@@ -48,22 +48,35 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
-import { curriculum } from '../data/curriculum'
+import { useTopicStore } from '../store/topic'
+import { getCurrentCurriculum } from '../utils/curriculumLoader'
 import CurriculumContent from '../components/CurriculumContent.vue'
 import BackToTop from '../components/BackToTop.vue'
 
 const route = useRoute()
 const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const loading = ref(true)
 const isCompleted = ref(false)
+const currentCurriculum = ref([])
 
 const sectionId = computed(() => route.params.sectionId)
 const lessonId = computed(() => route.params.lessonId)
 
+// Load curriculum for the current topic
+const loadCurriculum = async () => {
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum:', error)
+    currentCurriculum.value = []
+  }
+}
+
 const validSection = computed(() => {
   const index = Number(sectionId.value) - 1
-  return index >= 0 && index < curriculum.length
+  return index >= 0 && index < currentCurriculum.value.length
 })
 
 const validLesson = computed(() => {
@@ -72,7 +85,7 @@ const validLesson = computed(() => {
   const sectionIndex = Number(sectionId.value) - 1
   const lessonIndex = Number(lessonId.value) - 1
 
-  return lessonIndex >= 0 && lessonIndex < curriculum[sectionIndex].lessons.length
+  return lessonIndex >= 0 && lessonIndex < currentCurriculum.value[sectionIndex]?.lessons?.length
 })
 
 const checkCompletion = () => {
@@ -98,11 +111,11 @@ const hasNext = computed(() => {
 
   const currentSectionIndex = Number(sectionId.value) - 1
   const currentLessonIndex = Number(lessonId.value) - 1
-  const currentSection = curriculum[currentSectionIndex]
+  const currentSection = currentCurriculum.value[currentSectionIndex]
 
   return (
-    currentLessonIndex < currentSection.lessons.length - 1 ||
-    currentSectionIndex < curriculum.length - 1
+    currentLessonIndex < currentSection?.lessons?.length - 1 ||
+    currentSectionIndex < currentCurriculum.value.length - 1
   )
 })
 
@@ -121,7 +134,7 @@ const navigateToPrevious = () => {
     })
   } else if (currentSectionIndex > 0) {
     // Go to the last lesson of the previous section
-    const previousSection = curriculum[currentSectionIndex - 1]
+    const previousSection = currentCurriculum.value[currentSectionIndex - 1]
     router.push({
       name: 'lesson',
       params: {
@@ -135,7 +148,7 @@ const navigateToPrevious = () => {
 const navigateToNext = () => {
   const currentSectionIndex = Number(sectionId.value) - 1
   const currentLessonIndex = Number(lessonId.value) - 1
-  const currentSection = curriculum[currentSectionIndex]
+  const currentSection = currentCurriculum.value[currentSectionIndex]
 
   if (currentLessonIndex < currentSection.lessons.length - 1) {
     // Go to next lesson in the same section
@@ -146,7 +159,7 @@ const navigateToNext = () => {
         lessonId: currentLessonIndex + 2, // +2 because indices start at 0 but route params at 1
       },
     })
-  } else if (currentSectionIndex < curriculum.length - 1) {
+  } else if (currentSectionIndex < currentCurriculum.value.length - 1) {
     // Go to the first lesson of the next section
     router.push({
       name: 'lesson',
@@ -158,8 +171,10 @@ const navigateToNext = () => {
   }
 }
 
-const loadContent = () => {
+const loadContent = async () => {
   loading.value = true
+  await loadCurriculum()
+
   setTimeout(() => {
     loading.value = false
     checkCompletion()
@@ -170,7 +185,8 @@ onMounted(() => {
   loadContent()
 })
 
-watch([sectionId, lessonId], () => {
+// Watch for changes in route params or topic
+watch([sectionId, lessonId, () => topicStore.currentTopic], () => {
   loadContent()
 })
 </script>

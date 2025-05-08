@@ -141,11 +141,11 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUpdated, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
+import { getSection as getMainSection } from '../data/topic/javascript/curriculum'
+import { getSection as getShortlistSection } from '../data/topic/javascript/curriculum-shortlist'
 import { useProgressStore } from '../store/progress'
-import { useTopicStore } from '../store/topic'
 import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
-import { getSection, getShortlistSection } from '../utils/curriculumLoader'
 
 // Custom syntax highlighting styling for better readability
 import 'prismjs/components/prism-javascript'
@@ -165,67 +165,64 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  curriculumSource: {
-    type: Array,
-    default: null,
-  },
 })
 
 const route = useRoute()
 const progressStore = useProgressStore()
-const topicStore = useTopicStore()
 const explanationContent = ref(null)
-const section = ref(null)
-const lesson = ref(null)
-const challenge = ref(null)
-const loading = ref(true)
 
 // Check if we're on the shortlist route
 const isShortlistRoute = computed(() => {
   return route.path.includes('/minicourse-recapper')
 })
 
-// Load the appropriate section and lesson
-const loadContent = async () => {
-  loading.value = true
-
-  try {
-    // Load section based on the route type
-    if (isShortlistRoute.value) {
-      section.value = await getShortlistSection(props.sectionId)
-    } else {
-      section.value = await getSection(props.sectionId)
-    }
-
-    // Load lesson or challenge
-    if (props.isChallenge) {
-      challenge.value = section.value?.challenge || null
-      lesson.value = null
-    } else if (props.lessonId && section.value) {
-      lesson.value = section.value.lessons[props.lessonId - 1] || null
-      challenge.value = null
-    } else {
-      lesson.value = null
-      challenge.value = null
-    }
-
-    checkCompletion()
-  } catch (error) {
-    console.error('Error loading curriculum content:', error)
-    section.value = null
-    lesson.value = null
-    challenge.value = null
-  } finally {
-    loading.value = false
+// Choose the appropriate getSection function based on the route
+const getSection = (sectionId) => {
+  if (isShortlistRoute.value) {
+    return getShortlistSection(sectionId)
+  } else {
+    return getMainSection(sectionId)
   }
 }
+
+const section = computed(() => {
+  try {
+    return getSection(props.sectionId)
+  } catch (error) {
+    console.error(error.message)
+    return null
+  }
+})
+
+const lesson = computed(() => {
+  if (!section.value || props.isChallenge || !props.lessonId) {
+    return null
+  }
+
+  try {
+    return section.value.lessons[props.lessonId - 1]
+  } catch (error) {
+    console.error(
+      `Lesson ${props.lessonId} not found in section ${props.sectionId}: ${error.message}`,
+    )
+    return null
+  }
+})
+
+const challenge = computed(() => {
+  if (!section.value || !props.isChallenge) {
+    return null
+  }
+
+  return section.value.challenge
+})
 
 // Using a ref for the checkbox state to keep both checkboxes in sync (at top and bottom of page)
 const isLessonCompleted = ref(false)
 
 // Initialize checkbox state and add copy buttons to explanation code blocks
 onMounted(() => {
-  loadContent()
+  checkCompletion()
 
   // Apply custom Prism styling directly
   applyCustomPrismStyling()
@@ -236,36 +233,19 @@ onMounted(() => {
   })
 })
 
-// Watch for changes to section, lesson, or topic
-watch(
-  [
-    () => props.sectionId,
-    () => props.lessonId,
-    () => topicStore.currentTopic,
-    () => props.isChallenge,
-  ],
-  () => {
-    loadContent()
-  },
-)
-
 // Watch for progress store changes
 watch(
-  () => progressStore.currentTopicProgress,
+  () => progressStore.completedLessons,
   () => {
     checkCompletion()
   },
   { deep: true },
 )
 
-watch(
-  () => progressStore._forceUpdate,
-  () => {
-    checkCompletion()
-  },
-)
-
 // Function to add copy buttons to explanation code blocks
+// This function is called after the DOM is updated
+// Because VUE is rendering unknown elements using 'v-if' as random elements (lesson descriptions)
+// that may or may not have code blocks, we need to then stylise these blocks of 'code' examples AFTER the dom renders.
 const addCopyButtonsToExplanationCode = () => {
   const sections = document.querySelectorAll('.explanation pre')
 
@@ -337,13 +317,10 @@ const toggleLessonComplete = () => {
   const lessonIndex = props.lessonId - 1
 
   if (isLessonCompleted.value) {
-    progressStore.completeLesson(sectionIndex, lessonIndex, true)
+    progressStore.completeLesson(sectionIndex, lessonIndex)
   } else {
-    progressStore.uncompleteLesson(sectionIndex, lessonIndex, true)
+    progressStore.uncompleteLesson(sectionIndex, lessonIndex)
   }
-
-  // Force reactivity update
-  progressStore._forceUpdate++
 }
 
 // Function to escape HTML in the code examples

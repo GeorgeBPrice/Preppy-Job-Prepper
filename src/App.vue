@@ -31,14 +31,17 @@ import AppSidebar from './components/AppSidebar.vue'
 import BackToTop from './components/BackToTop.vue'
 import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
 import { useProgressStore } from './store/progress'
+import { useTopicStore } from './store/topic'
 import { useThemeStore } from './theme/theme'
 import CourseCompletedModal from '@/components/CourseCompletedModal.vue'
 import useCongratulationsModal from './scripts/useCongratulationsModal'
 
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const themeStore = useThemeStore()
 const isSidebarCollapsed = ref(false)
 const isMobileMenuOpen = ref(false)
+const initialLoadDone = ref(false)
 
 // Create a computed property for dark mode
 const isDarkMode = computed(() => themeStore.isDarkMode)
@@ -48,6 +51,37 @@ onBeforeMount(() => {
   if (!themeStore.isLoaded) {
     themeStore.loadThemePreference()
   }
+})
+
+// Initialize required data on app mount
+onMounted(async () => {
+  // Load topic preference
+  if (!topicStore.isLoaded) {
+    topicStore.loadTopicPreference()
+    // Check which topics have curriculum available
+    await topicStore.initializeTopics()
+  }
+
+  // Load progress data
+  if (!progressStore.isLoaded) {
+    progressStore.loadProgress()
+  }
+
+  // Initial theme application
+  if (themeStore.isDarkMode) {
+    document.body.classList.add('dark-mode')
+    document.documentElement.setAttribute('data-theme', 'dark')
+  } else {
+    document.body.classList.remove('dark-mode')
+    document.documentElement.setAttribute('data-theme', 'light')
+  }
+
+  // Check initial screen size
+  if (window.innerWidth < 768) {
+    isSidebarCollapsed.value = true
+  }
+
+  initialLoadDone.value = true
 })
 
 // Watch theme changes to update body class and document attributes
@@ -85,10 +119,15 @@ const toggleSidebar = () => {
   }
 }
 
-// Watch progress and trigger completion logic
+// Watch overall progress and trigger completion logic
 watch(
-  () => Math.round(progressStore.overallProgress * 100),
-  (percentage) => {
+  () => initialLoadDone.value && progressStore.overallProgress,
+  async (progressGetter) => {
+    if (!initialLoadDone.value) return
+
+    // Since overallProgress is now an async getter, we need to resolve it
+    const percentage = Math.round((await progressGetter) * 100)
+
     if (percentage <= 99) {
       localStorage.removeItem('congratulated')
     }
@@ -97,25 +136,8 @@ watch(
       useCongratulationsModal()
     }
   },
+  { immediate: false },
 )
-
-onMounted(() => {
-  progressStore.loadProgress()
-
-  // Initial theme application
-  if (themeStore.isDarkMode) {
-    document.body.classList.add('dark-mode')
-    document.documentElement.setAttribute('data-theme', 'dark')
-  } else {
-    document.body.classList.remove('dark-mode')
-    document.documentElement.setAttribute('data-theme', 'light')
-  }
-
-  // Check initial screen size
-  if (window.innerWidth < 768) {
-    isSidebarCollapsed.value = true
-  }
-})
 </script>
 
 <style>

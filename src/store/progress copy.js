@@ -1,23 +1,16 @@
 import { defineStore } from 'pinia'
-import {
-  saveToStorage,
-  loadFromStorage,
-  saveTopicProgress,
-  // loadTopicProgress,
-} from '../utils/storage'
+import { saveToStorage, loadFromStorage, saveTopicProgress } from '../utils/storage'
 import { useTopicStore } from './topic'
 import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 export const useProgressStore = defineStore('progress', {
   state: () => ({
-    // Mapping of topic -> section -> lesson -> completion status
     topicProgress: {},
     isLoaded: false,
     _forceUpdate: 0,
   }),
 
   getters: {
-    // Get current topic's progress data
     currentTopicProgress(state) {
       const topicStore = useTopicStore()
       const topicKey = topicStore.currentTopic
@@ -35,7 +28,6 @@ export const useProgressStore = defineStore('progress', {
       return state.topicProgress[topicKey]
     },
 
-    // Alias getters for backward compatibility and convenience
     completedLessons() {
       return this.currentTopicProgress.completedLessons || {}
     },
@@ -56,14 +48,8 @@ export const useProgressStore = defineStore('progress', {
       return this.currentTopicProgress.currentLesson || { section: 0, lesson: 0 }
     },
 
-    // Calculate overall progress for current topic
     async overallProgress() {
       try {
-        // Including _forceUpdate as a dependency to trigger reactivity
-        // This line doesn't do anything functionally but ensures the getter re-runs when _forceUpdate changes
-        // eslint-disable-next-line no-unused-vars
-        const _ = this._forceUpdate
-
         let totalItems = 0
         let completedItems = 0
 
@@ -73,7 +59,7 @@ export const useProgressStore = defineStore('progress', {
         }
 
         curriculum.forEach((section, sectionIndex) => {
-          if (section.lessons && section.lessons.length > 0) {
+          if (Array.isArray(section.lessons) && section.lessons.length > 0) {
             section.lessons.forEach((_, lessonIndex) => {
               totalItems++
               if (this.completedLessons[sectionIndex]?.[lessonIndex]) {
@@ -82,7 +68,6 @@ export const useProgressStore = defineStore('progress', {
             })
           }
 
-          // Add challenge
           if (section.challenge) {
             totalItems++
             if (this.completedChallenges[sectionIndex]) {
@@ -100,7 +85,6 @@ export const useProgressStore = defineStore('progress', {
 
     hasAnyProgress() {
       const progress = this.currentTopicProgress
-
       return (
         (progress.currentLesson && progress.currentLesson.section > 0) ||
         Object.keys(progress.completedLessons || {}).length > 0 ||
@@ -108,7 +92,6 @@ export const useProgressStore = defineStore('progress', {
       )
     },
 
-    // Find the next uncompleted item (not checked by user)
     async nextUncompletedItem() {
       try {
         const curriculum = await getCurrentCurriculum()
@@ -118,8 +101,7 @@ export const useProgressStore = defineStore('progress', {
 
         for (let sectionIndex = 0; sectionIndex < curriculum.length; sectionIndex++) {
           const section = curriculum[sectionIndex]
-
-          if (section.lessons && section.lessons.length > 0) {
+          if (Array.isArray(section.lessons) && section.lessons.length > 0) {
             for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
               if (!this.isLessonCompleted(sectionIndex, lessonIndex)) {
                 return { type: 'lesson', section: sectionIndex, lesson: lessonIndex }
@@ -143,12 +125,9 @@ export const useProgressStore = defineStore('progress', {
     loadProgress() {
       const data = loadFromStorage('js_job_review_progress')
       if (data) {
-        // Handle legacy data format (pre-topic separation)
         if (data.completedLessons) {
           const topicStore = useTopicStore()
           const defaultTopic = topicStore.currentTopic
-
-          // Migrate old data to new format
           this.topicProgress = {
             [defaultTopic]: {
               completedLessons: data.completedLessons || {},
@@ -159,12 +138,10 @@ export const useProgressStore = defineStore('progress', {
             },
           }
         } else if (data.topicProgress) {
-          // Use new data format
           this.topicProgress = data.topicProgress
         }
       }
 
-      // Initialize current topic if not present
       const topicStore = useTopicStore()
       if (!this.topicProgress[topicStore.currentTopic]) {
         this.topicProgress[topicStore.currentTopic] = {
@@ -185,66 +162,37 @@ export const useProgressStore = defineStore('progress', {
         topicProgress: this.topicProgress,
       }
 
-      // Save all topic progress
       saveToStorage(data, 'js_job_review_progress')
-
-      // Also save current topic separately for backup
       const topicStore = useTopicStore()
       saveTopicProgress(topicStore.currentTopic, this.currentTopicProgress)
+      this._forceUpdate++ // Trigger UI update
     },
 
-    completeLesson(sectionIndex, lessonIndex, updateProgress = false) {
+    completeLesson(sectionIndex, lessonIndex) {
       const progress = this.currentTopicProgress
-      if (!progress.completedLessons) {
-        progress.completedLessons = {}
-      }
-
-      if (!progress.completedLessons[sectionIndex]) {
-        progress.completedLessons[sectionIndex] = {}
-      }
-
+      if (!progress.completedLessons) progress.completedLessons = {}
+      if (!progress.completedLessons[sectionIndex]) progress.completedLessons[sectionIndex] = {}
       progress.completedLessons[sectionIndex][lessonIndex] = true
       this.updateCurrentLesson(sectionIndex, lessonIndex)
-      this._forceUpdate++ // Force reactivity update
       this.saveProgress()
-
-      // For immediate progress bar update
-      if (updateProgress) {
-        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
-      }
     },
 
-    // In uncompleteLesson method:
-    uncompleteLesson(sectionIndex, lessonIndex, updateProgress = false) {
+    uncompleteLesson(sectionIndex, lessonIndex) {
       const progress = this.currentTopicProgress
       if (progress.completedLessons && progress.completedLessons[sectionIndex]) {
         delete progress.completedLessons[sectionIndex][lessonIndex]
-
-        // If there are no more lessons in this section, remove the section entry
         if (Object.keys(progress.completedLessons[sectionIndex]).length === 0) {
           delete progress.completedLessons[sectionIndex]
         }
       }
-      this._forceUpdate++ // Force reactivity update
       this.saveProgress()
-
-      // For immediate progress bar update
-      if (updateProgress) {
-        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
-      }
     },
 
-    // In completeSectionChallenge method:
-    completeSectionChallenge(sectionIndex, updateProgress = false) {
+    completeSectionChallenge(sectionIndex) {
       const progress = this.currentTopicProgress
-      if (!progress.completedChallenges) {
-        progress.completedChallenges = {}
-      }
-
+      if (!progress.completedChallenges) progress.completedChallenges = {}
       progress.completedChallenges[sectionIndex] = true
-      this._forceUpdate++ // Force reactivity update
 
-      // Async function to get curriculum length
       const updateNextSection = async () => {
         try {
           const curriculum = await getCurrentCurriculum()
@@ -258,38 +206,18 @@ export const useProgressStore = defineStore('progress', {
 
       updateNextSection()
       this.saveProgress()
-
-      // For immediate progress bar update
-      if (updateProgress) {
-        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
-      }
     },
 
-    // In uncompleteSectionChallenge method:
-    uncompleteSectionChallenge(sectionIndex, updateProgress = false) {
+    uncompleteSectionChallenge(sectionIndex) {
       const progress = this.currentTopicProgress
-      if (progress.completedChallenges) {
-        delete progress.completedChallenges[sectionIndex]
-      }
-      this._forceUpdate++ // Force reactivity update
+      if (progress.completedChallenges) delete progress.completedChallenges[sectionIndex]
       this.saveProgress()
-
-      // For immediate progress bar update
-      if (updateProgress) {
-        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
-      }
     },
 
     saveLessonCode(sectionIndex, lessonIndex, code) {
       const progress = this.currentTopicProgress
-      if (!progress.lessonCode) {
-        progress.lessonCode = {}
-      }
-
-      if (!progress.lessonCode[sectionIndex]) {
-        progress.lessonCode[sectionIndex] = {}
-      }
-
+      if (!progress.lessonCode) progress.lessonCode = {}
+      if (!progress.lessonCode[sectionIndex]) progress.lessonCode[sectionIndex] = {}
       progress.lessonCode[sectionIndex][lessonIndex] = code
       this.saveProgress()
     },
@@ -301,10 +229,7 @@ export const useProgressStore = defineStore('progress', {
 
     saveSectionChallengeCode(sectionIndex, code) {
       const progress = this.currentTopicProgress
-      if (!progress.challengeCode) {
-        progress.challengeCode = {}
-      }
-
+      if (!progress.challengeCode) progress.challengeCode = {}
       progress.challengeCode[sectionIndex] = code
       this.saveProgress()
     },
@@ -328,24 +253,15 @@ export const useProgressStore = defineStore('progress', {
       try {
         const curriculum = await getCurrentCurriculum()
         if (!curriculum || curriculum.length <= sectionIndex) return false
-
         const section = curriculum[sectionIndex]
         if (!section) return false
-
         if (!section.lessons || section.lessons.length === 0) return false
 
-        // Check if all lessons are completed
         for (let i = 0; i < section.lessons.length; i++) {
-          if (!this.isLessonCompleted(sectionIndex, i)) {
-            return false
-          }
+          if (!this.isLessonCompleted(sectionIndex, i)) return false
         }
 
-        // Check if challenge is completed (if there is one)
-        if (section.challenge && !this.isChallengeCompleted(sectionIndex)) {
-          return false
-        }
-
+        if (section.challenge && !this.isChallengeCompleted(sectionIndex)) return false
         return true
       } catch (error) {
         console.error('Error checking if section is completed:', error)
@@ -355,16 +271,12 @@ export const useProgressStore = defineStore('progress', {
 
     updateCurrentLesson(sectionIndex, lessonIndex) {
       const progress = this.currentTopicProgress
-      progress.currentLesson = {
-        section: sectionIndex,
-        lesson: lessonIndex,
-      }
+      progress.currentLesson = { section: sectionIndex, lesson: lessonIndex }
     },
 
     resetProgress() {
       const topicStore = useTopicStore()
       const currentTopic = topicStore.currentTopic
-
       this.topicProgress[currentTopic] = {
         completedLessons: {},
         completedChallenges: {},
@@ -372,11 +284,9 @@ export const useProgressStore = defineStore('progress', {
         challengeCode: {},
         currentLesson: { section: 0, lesson: 0 },
       }
-
       this.saveProgress()
     },
 
-    // Reset progress for all topics
     resetAllProgress() {
       this.topicProgress = {}
       this.saveProgress()

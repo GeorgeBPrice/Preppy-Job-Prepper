@@ -1,10 +1,10 @@
 <template>
   <div class="interview-view">
     <div class="container">
-      <h1 class="view-title">Prepper Interview Questions</h1>
+      <h1 class="view-title">{{ topicStore.currentTopicName }} Prepper Questions</h1>
       <p class="view-description">
-        Review the most common interview questions from each curriculum section. Expand questions to
-        see concise answers that will help you prepare for technical interviews.
+        Review the most common interview questions from each lesson section. Expand questions to see
+        concise answers that will help you prepare for technical interviews.
       </p>
 
       <interview-questions
@@ -21,9 +21,11 @@
 import { onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import InterviewQuestions from '../components/InterviewQuestions.vue'
+import { useTopicStore } from '../store/topic'
 
 const router = useRouter()
 const route = useRoute()
+const topicStore = useTopicStore()
 
 // Handle section changes from the component
 const onSectionChange = (sectionId) => {

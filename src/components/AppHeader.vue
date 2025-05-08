@@ -32,10 +32,32 @@
             </svg>
           </div>
 
-          <h1 class="gradient-text d-none d-md-block">JavaScript Job Prepper</h1>
-          <h1 class="gradient-text d-inline-block d-md-none">JS Prepper</h1>
-        </div>
+          <!-- Topic Selector Dropdown -->
+          <div class="topic-selector d-none d-md-flex">
+            <label for="topic-select" class="topic-label">Topic:</label>
+            <select
+              id="topic-select"
+              v-model="selectedTopic"
+              @change="changeTopic"
+              class="topic-select"
+            >
+              <option
+                v-for="topic in topicStore.availableTopics"
+                :key="topic.value"
+                :value="topic.value"
+              >
+                {{ topic.label }}
+              </option>
+            </select>
+          </div>
 
+          <h1 class="gradient-text d-none d-md-block">
+            {{ topicStore.currentTopicName }} Job Prepper
+          </h1>
+          <h1 class="gradient-text d-inline-block d-md-none">
+            {{ topicStore.topicShortName }} Prepper
+          </h1>
+        </div>
         <!-- Middle section: Search bar (only visible on desktop) -->
         <div class="header-center d-none d-md-block">
           <SearchBar @search-closed="searchExpanded = false" />
@@ -43,6 +65,24 @@
 
         <!-- Right section: Theme toggle, Progress, Continue, and mobile search icon -->
         <div class="header-right">
+          <!-- Mobile Topic Selector -->
+          <div class="mobile-topic-selector d-md-none">
+            <select
+              v-model="selectedTopic"
+              @change="changeTopic"
+              class="topic-select-mobile"
+              aria-label="Select topic"
+            >
+              <option
+                v-for="topic in topicStore.availableTopics"
+                :key="topic.value"
+                :value="topic.value"
+              >
+                {{ topic.label }}
+              </option>
+            </select>
+          </div>
+
           <div class="progress-container d-flex">
             <ProgressBar />
           </div>
@@ -74,14 +114,17 @@ import SearchBar from './SearchBar.vue'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
-import { curriculum } from '../data/curriculum'
+import { useTopicStore } from '../store/topic'
 
 const emit = defineEmits(['toggle-mobile-menu'])
 const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
+
 const mobileMenuOpen = ref(false)
 const searchExpanded = ref(false)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
+const selectedTopic = ref('javascript') // Added ref for topic selection
 
 // Check if there's any user progress to determine if we should show the continue button
 const hasProgress = computed(() => {
@@ -97,6 +140,12 @@ onMounted(() => {
   if (!progressStore.isLoaded) {
     progressStore.loadProgress()
   }
+
+  // Load topic preference
+  if (!topicStore.isLoaded) {
+    topicStore.loadTopicPreference()
+  }
+  selectedTopic.value = topicStore.currentTopic
 
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize)
@@ -118,34 +167,45 @@ const handleResize = () => {
   }
 }
 
-const goToCurrentProgress = () => {
-  const nextItem = progressStore.nextUncompletedItem
-  if (nextItem) {
-    if (nextItem.type === 'lesson') {
-      router.push({
-        name: 'lesson',
-        params: {
-          sectionId: nextItem.section + 1,
-          lessonId: nextItem.lesson + 1,
-        },
-      })
-    } else if (nextItem.type === 'challenge') {
-      router.push({
-        name: 'challenge',
-        params: {
-          sectionId: nextItem.section + 1,
-        },
-      })
+// Handle topic change - redirect to home page
+const changeTopic = () => {
+  // Only take action if there's actually a change
+  if (selectedTopic.value !== topicStore.currentTopic) {
+    // Set the new topic
+    topicStore.setTopic(selectedTopic.value)
+
+    // Always navigate to home page when switching topics
+    router.push('/')
+  }
+}
+
+const goToCurrentProgress = async () => {
+  try {
+    const nextItem = await progressStore.nextUncompletedItem
+    if (nextItem) {
+      if (nextItem.type === 'lesson') {
+        router.push({
+          name: 'lesson',
+          params: {
+            sectionId: nextItem.section + 1,
+            lessonId: nextItem.lesson + 1,
+          },
+        })
+      } else if (nextItem.type === 'challenge') {
+        router.push({
+          name: 'challenge',
+          params: {
+            sectionId: nextItem.section + 1,
+          },
+        })
+      }
+    } else {
+      // If all items are completed, navigate to home
+      router.push('/')
     }
-  } else {
-    // If all items are completed, go to the last challenge
-    const lastSectionIndex = curriculum.length - 1
-    router.push({
-      name: 'challenge',
-      params: {
-        sectionId: lastSectionIndex + 1,
-      },
-    })
+  } catch (error) {
+    console.error('Error navigating to current progress:', error)
+    router.push('/')
   }
 }
 
@@ -271,13 +331,64 @@ h1 {
   flex-direction: column;
 }
 
+/* Topic selector styles */
+.topic-selector {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.topic-label {
+  margin-right: 5px;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.topic-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.topic-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.mobile-topic-selector {
+  margin-right: 10px;
+}
+
+.topic-select-mobile {
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  font-size: 0.8rem;
+  max-width: 95px;
+  outline: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 576px) {
-  .continue-btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
+  .topic-label {
+    display: none;
   }
 
+  .topic-select-mobile {
+    max-width: 80px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 767px) {
   .progress-container {
     width: 80px;
   }

@@ -44,6 +44,20 @@ p {
   background-color: #ffe3e524;
 }
 
+/* scrollbar answers (prep questions) */
+.scrollable-answers {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 50vh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--secondary-color) transparent;
+}
+
+html[data-theme='dark'] .scrollable-answers,
+body.dark-mode .scrollable-answers {
+  background-color: #0f0f28;
+}
+
 /* scrollbar code */
 .scrollable-code {
   margin: 0;
@@ -109,4 +123,33 @@ body.dark-mode .scrollable-code {
 .code-copy-btn:hover {
   background-color: var(--primary-color);
   color: white;
+}
+
+/* Table styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  background-color: var(--bg-card);
+}
+
+th,
+td {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+th {
+  background-color: var(--bg-header);
+  color: var(--text-color);
+  font-weight: bold;
+}
+
+td {
+  color: var(--text-color);
+}
+
+tr:nth-child(even) {
+  background-color: var(--bg-exercise);
 }

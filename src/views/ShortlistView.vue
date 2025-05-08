@@ -8,8 +8,8 @@
 
     <div v-else-if="!validSection" class="error-message">
       <div class="alert alert-danger">
-        The shortlist section was not found. Please check the URL or go back to the
-        <router-link to="/">home page</router-link>.
+        <p>The shortlist section was not found for {{ topicStore.currentTopicName }}.</p>
+        <p>Please check the URL or go back to the <router-link to="/">home page</router-link>.</p>
       </div>
     </div>
 
@@ -46,29 +46,42 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
-import { shortlistCurriculum } from '../data/curriculum-shortlist'
+import { useTopicStore } from '../store/topic'
+import { getCurrentShortlistCurriculum } from '../utils/curriculumLoader'
 import CurriculumContent from '../components/CurriculumContent.vue'
 import BackToTop from '../components/BackToTop.vue'
 
 const route = useRoute()
+const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const loading = ref(true)
 const isCompleted = ref(false)
+const shortlistCurriculum = ref([])
 
 // For shortlist, we always use section 1, but might have different lessons
-// const sectionId = ref(1)
 const lessonId = computed(() => route.params.lessonId || 1)
 
+// Load shortlist curriculum based on the current topic
+const loadCurriculum = async () => {
+  try {
+    shortlistCurriculum.value = await getCurrentShortlistCurriculum()
+  } catch (error) {
+    console.error('Error loading shortlist curriculum:', error)
+    shortlistCurriculum.value = []
+  }
+}
+
 // The shortlist only has one section
-const validSection = computed(() => shortlistCurriculum.length > 0)
+const validSection = computed(() => shortlistCurriculum.value.length > 0)
 
 const validLesson = computed(() => {
   if (!validSection.value) return false
 
   const lessonIndex = Number(lessonId.value) - 1
-  return lessonIndex >= 0 && lessonIndex < shortlistCurriculum[0].lessons.length
+  return lessonIndex >= 0 && lessonIndex < shortlistCurriculum.value[0]?.lessons?.length
 })
 
 const checkCompletion = () => {
@@ -79,8 +92,40 @@ const checkCompletion = () => {
   isCompleted.value = progressStore.isLessonCompleted('shortlist', lessonIndex)
 }
 
-const loadContent = () => {
+// Navigation helpers
+const hasPrevious = computed(() => {
+  if (!validLesson.value) return false
+  return Number(lessonId.value) > 1
+})
+
+const hasNext = computed(() => {
+  if (!validLesson.value) return false
+  const lessonIndex = Number(lessonId.value) - 1
+  return lessonIndex < shortlistCurriculum.value[0]?.lessons?.length - 1
+})
+
+const navigateToPrevious = () => {
+  if (hasPrevious.value) {
+    router.push({
+      name: 'shortlist',
+      params: { lessonId: Number(lessonId.value) - 1 },
+    })
+  }
+}
+
+const navigateToNext = () => {
+  if (hasNext.value) {
+    router.push({
+      name: 'shortlist',
+      params: { lessonId: Number(lessonId.value) + 1 },
+    })
+  }
+}
+
+const loadContent = async () => {
   loading.value = true
+  await loadCurriculum()
+
   setTimeout(() => {
     loading.value = false
     checkCompletion()
@@ -91,7 +136,8 @@ onMounted(() => {
   loadContent()
 })
 
-watch(lessonId, () => {
+// Watch for changes in route params or topic
+watch([lessonId, () => topicStore.currentTopic], () => {
   loadContent()
 })
 </script>
@@ -127,6 +173,4 @@ watch(lessonId, () => {
   max-width: 900px;
   margin: 0 auto;
 }
-
-/* Add any additional styling for shortlist-specific elements */
 </style>

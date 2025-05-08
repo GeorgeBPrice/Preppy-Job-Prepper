@@ -53,7 +53,8 @@
       v-else-if="isSearchActive && searchQuery && searchResults.length === 0"
       class="search-no-results"
     >
-      No results found for "{{ searchQuery }}"
+      <div v-if="loading">Searching...</div>
+      <div v-else>No results found for "{{ searchQuery }}"</div>
     </div>
   </div>
 </template>
@@ -61,7 +62,8 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { curriculum } from '../data/curriculum'
+import { useTopicStore } from '../store/topic'
+import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 // Component state
 const searchQuery = ref('')
@@ -69,10 +71,26 @@ const isSearchActive = ref(false)
 const selectedIndex = ref(0)
 const searchInput = ref(null)
 const router = useRouter()
+const topicStore = useTopicStore()
+const currentCurriculum = ref([])
+const loading = ref(false)
+
+// Load the curriculum for the current topic
+const loadCurriculum = async () => {
+  loading.value = true
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum for search:', error)
+    currentCurriculum.value = []
+  } finally {
+    loading.value = false
+  }
+}
 
 // Search logic
 const searchResults = computed(() => {
-  if (!searchQuery.value.trim()) return []
+  if (!searchQuery.value.trim() || !currentCurriculum.value.length) return []
 
   const query = searchQuery.value.trim().toLowerCase()
   const results = []
@@ -83,12 +101,12 @@ const searchResults = computed(() => {
       type: 'interview',
       title: 'Interview Questions',
       path: { name: 'interview-questions' },
-      context: 'Review common JavaScript interview questions',
+      context: `Review common ${topicStore.currentTopicName} interview questions`,
     })
   }
 
   // Search through curriculum
-  curriculum.forEach((section, sectionIndex) => {
+  currentCurriculum.value.forEach((section, sectionIndex) => {
     // Check section title
     if (section.title.toLowerCase().includes(query)) {
       results.push({
@@ -103,50 +121,52 @@ const searchResults = computed(() => {
     }
 
     // Check section lessons
-    section.lessons.forEach((lesson, lessonIndex) => {
-      if (lesson.title.toLowerCase().includes(query)) {
-        results.push({
-          type: 'lesson',
-          title: `${section.title}: ${lesson.title}`,
-          path: {
-            name: 'lesson',
-            params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
-          },
-          context: lesson.description,
-        })
-      }
+    if (section.lessons) {
+      section.lessons.forEach((lesson, lessonIndex) => {
+        if (lesson.title.toLowerCase().includes(query)) {
+          results.push({
+            type: 'lesson',
+            title: `${section.title}: ${lesson.title}`,
+            path: {
+              name: 'lesson',
+              params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
+            },
+            context: lesson.description,
+          })
+        }
 
-      // Search through lesson sections if they exist
-      if (lesson.sections) {
-        lesson.sections.forEach((subSection) => {
-          if (subSection.title.toLowerCase().includes(query)) {
-            results.push({
-              type: 'lesson',
-              title: `${section.title}: ${lesson.title}`,
-              subTitle: subSection.title,
-              path: {
-                name: 'lesson',
-                params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
-              },
-              context: subSection.title,
-            })
-          }
+        // Search through lesson sections if they exist
+        if (lesson.sections) {
+          lesson.sections.forEach((subSection) => {
+            if (subSection.title.toLowerCase().includes(query)) {
+              results.push({
+                type: 'lesson',
+                title: `${section.title}: ${lesson.title}`,
+                subTitle: subSection.title,
+                path: {
+                  name: 'lesson',
+                  params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
+                },
+                context: subSection.title,
+              })
+            }
 
-          // Deep search in explanation text (simplified version, could be enhanced)
-          if (subSection.explanation && subSection.explanation.toLowerCase().includes(query)) {
-            results.push({
-              type: 'lesson',
-              title: `${section.title}: ${lesson.title}`,
-              path: {
-                name: 'lesson',
-                params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
-              },
-              context: extractContext(subSection.explanation, query),
-            })
-          }
-        })
-      }
-    })
+            // Deep search in explanation text (simplified version, could be enhanced)
+            if (subSection.explanation && subSection.explanation.toLowerCase().includes(query)) {
+              results.push({
+                type: 'lesson',
+                title: `${section.title}: ${lesson.title}`,
+                path: {
+                  name: 'lesson',
+                  params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
+                },
+                context: extractContext(subSection.explanation, query),
+              })
+            }
+          })
+        }
+      })
+    }
   })
 
   // Limit to avoid too many results
@@ -162,6 +182,15 @@ watch(searchResults, () => {
 watch(searchQuery, () => {
   selectedIndex.value = 0
 })
+
+// Watch for topic changes to reload curriculum
+watch(
+  () => topicStore.currentTopic,
+  async () => {
+    searchQuery.value = '' // Clear search when topic changes
+    await loadCurriculum()
+  },
+)
 
 // Extract context around the match
 function extractContext(text, query) {
@@ -189,7 +218,6 @@ function highlightMatch(text, query) {
   return text.replace(regex, '<mark>$1</mark>')
 }
 
-// Clear search and reset state
 // Clear search and reset state
 function clearSearch() {
   searchQuery.value = ''
@@ -235,8 +263,9 @@ function handleKeyDown(e) {
 }
 
 // Add global event listener for keyboard shortcut
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeyDown)
+  await loadCurriculum()
 })
 
 // Clean up
