@@ -2,6 +2,10 @@
 
 _Preppy-Job-Prepper_ is a comprehensive **Language Review** app designed to prepare professionals for job interviews in roles such of **Mid-level** to **Senior** level, for Full Stack, Web Developer or Application Developer positions. The app covers multiple programming languages and technologies including JavaScript, TypeScript, React, C#, DevOps, and AI concepts via concise lessons, interview focus examples, common interview questions, code challenges, and \*_AI-powered code grading and feedback_. Each topic curriculum is broken down into key sections ranging from fundamentals to advanced topics, with comprehensive interview questions.
 
+<img width="962" alt="Home - darkmode" src="https://github.com/user-attachments/assets/8a51451d-4e4e-42ad-970f-0eb516d6e693" />
+
+
+
 This is a **static application**, meaning it does not require a database to run. The curriculum content is managed through static data files (e.g., `curriculum.js`) or in-memory data structures, simplifying deployment and eliminating the need for backend server setup. User progress and code submissions are stored locally using `localStorage` and cookies.
 
 ## Features
@@ -15,6 +19,11 @@ This is a **static application**, meaning it does not require a database to run.
 - **Multiple AI Providers**: Choose from a range of AI models for code review, including Claude 3.5 Sonnet, GPT-4o, Mistral Large, and more, with configurable API keys and versions.
 - **Code Editor**: Write, save, and preview your solutions with syntax highlighting powered by Prism.js.
 - **Static Deployment**: Run the app entirely on the client side with no server or database required.
+  
+<img width="682" alt="Add you own API key" src="https://github.com/user-attachments/assets/a5a60595-fe68-4ff2-bffe-6a5352de7c9e" />
+
+<img width="1007" alt="AI Code Challenge Review - darkmode" src="https://github.com/user-attachments/assets/b642ac9b-5e3a-4b09-bf3d-c1c8f726cc76" />
+
 
 ## Key Technologies Used
 
@@ -61,16 +70,6 @@ Breaks down JavaScript concepts into 10 core areas crucial for interview success
 8. **Testing and Debugging**: Unit testing, debugging techniques, and common pitfalls.
 9. **Modern JavaScript Frameworks**: Component architecture, state management, and routing concepts.
 10. **Advanced JavaScript Concepts**: Prototypes, Web Workers, memory management, and TypeScript basics.
-
-### Additional Technologies
-
-- **TypeScript**: Type system, interfaces, generics, and advanced TypeScript features.
-- **React**: Component architecture, hooks, state management, and React patterns.
-- **C#**: Language fundamentals, .NET framework, object-oriented programming, and advanced C# concepts.
-- **DevOps**: CI/CD, containerization, cloud services, and DevOps practices.
-- **AI**: Fundamentals, applications, ethics, architectures, and advanced AI concepts.
-
-This curriculum prepares you for roles like Web Developer, Full-Stack Developer, and Software Developer by focusing on practical, interview-relevant skills across multiple technologies.
 
 ## Setup and Installation
 
