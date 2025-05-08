@@ -5,8 +5,12 @@
       'sidebar-mobile-open': isMobileMenuOpen,
       'dark-mode': isDarkMode,
     }"
+    @click="handleOutsideClick"
   >
-    <AppHeader @toggle-mobile-menu="handleMobileMenuToggle" />
+    <AppHeader
+      @toggle-mobile-menu="handleMobileMenuToggle"
+      :isMobileMenuOpenExternal="isMobileMenuOpen"
+    />
     <div
       class="main-content"
       :class="{
@@ -14,7 +18,11 @@
         'dark-mode': isDarkMode,
       }"
     >
-      <AppSidebar :is-collapsed="isSidebarCollapsed && !isMobileMenuOpen" @toggle="toggleSidebar" />
+      <AppSidebar
+        :is-collapsed="isSidebarCollapsed && !isMobileMenuOpen"
+        @toggle="toggleSidebar"
+        @close="closeMobileMenu"
+      />
       <main class="content-area" :class="{ 'dark-mode': isDarkMode }">
         <router-view></router-view>
         <BackToTop />
@@ -115,6 +123,27 @@ const toggleSidebar = () => {
 
   // If on mobile, closing sidebar should also close mobile menu
   if (isSidebarCollapsed.value && window.innerWidth < 768) {
+    isMobileMenuOpen.value = false
+  }
+}
+
+// Close mobile menu when clicking outside
+const handleOutsideClick = (event) => {
+  // Only handle clicks when the mobile menu is open and on mobile
+  if (isMobileMenuOpen.value && window.innerWidth < 768) {
+    // Check if click is outside the sidebar
+    const sidebar = document.querySelector('.sidebar')
+    const header = document.querySelector('.app-header')
+
+    if (sidebar && header && !sidebar.contains(event.target) && !header.contains(event.target)) {
+      isMobileMenuOpen.value = false
+    }
+  }
+}
+
+// Close mobile menu explicitly
+const closeMobileMenu = () => {
+  if (window.innerWidth < 768) {
     isMobileMenuOpen.value = false
   }
 }

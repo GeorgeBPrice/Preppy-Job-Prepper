@@ -18,8 +18,26 @@ export async function loadCurriculum(topic) {
     const curriculumModule = await import(`../data/topic/${topic}/curriculum.js`)
     return curriculumModule
   } catch (error) {
-    console.error(`Failed to load curriculum for topic: ${topic}`, error)
-    return defaultCurriculum
+    // Try to load curriculum from sections as fallback
+    try {
+      // For topics that use section-based curriculum structure
+      const section1 = await import(`../data/topic/${topic}/sections/curriculum-section1.js`)
+      const curriculum = section1.default ? section1.default : section1
+
+      // If this is a section-based curriculum, construct a simple curriculum array
+      return {
+        curriculum: [
+          {
+            title: `${topic.charAt(0).toUpperCase() + topic.slice(1)} Section 1`,
+            description: 'First section of the curriculum',
+            lessons: curriculum.lessons || [],
+          },
+        ],
+      }
+    } catch {
+      console.error(`Failed to load curriculum for topic: ${topic}`, error)
+      return defaultCurriculum
+    }
   }
 }
 
@@ -85,7 +103,22 @@ export async function getSection(sectionId) {
       return curriculumData.curriculum[sectionId - 1]
     }
 
-    throw new Error(`Section ${sectionId} not found in ${topicStore.currentTopic} curriculum`)
+    // If no curriculum found, try to load directly from section files
+    try {
+      const sectionModule = await import(
+        `../data/topic/${topicStore.currentTopic}/sections/curriculum-section${sectionId}.js`
+      )
+      return {
+        title: `Section ${sectionId}`,
+        description: 'Curriculum section',
+        lessons: sectionModule.default
+          ? sectionModule.default.lessons
+          : sectionModule.lessons || [],
+      }
+    } catch {
+      // If section file doesn't exist either, throw error
+      throw new Error(`Section ${sectionId} not found in ${topicStore.currentTopic} curriculum`)
+    }
   } catch (error) {
     console.error(`Failed to get section ${sectionId} for topic: ${topicStore.currentTopic}`, error)
     throw error
@@ -137,30 +170,16 @@ export async function getShortlistSection(sectionId) {
 export async function getLesson(sectionId, lessonId) {
   const topicStore = useTopicStore()
   try {
-    const curriculumData = await loadCurriculum(topicStore.currentTopic)
-
-    // The getLesson function from the imported module
-    if (curriculumData.getLesson) {
-      return curriculumData.getLesson(sectionId, lessonId)
+    const section = await getSection(sectionId)
+    if (section && section.lessons && lessonId > 0 && lessonId <= section.lessons.length) {
+      return section.lessons[lessonId - 1]
     }
-
-    // Fallback if getLesson doesn't exist
-    if (
-      curriculumData.curriculum &&
-      sectionId > 0 &&
-      sectionId <= curriculumData.curriculum.length &&
-      lessonId > 0 &&
-      lessonId <= curriculumData.curriculum[sectionId - 1].lessons.length
-    ) {
-      return curriculumData.curriculum[sectionId - 1].lessons[lessonId - 1]
-    }
-
     throw new Error(
-      `Lesson ${lessonId} in section ${sectionId} not found in ${topicStore.currentTopic} curriculum`,
+      `Lesson ${lessonId} not found in section ${sectionId} for topic ${topicStore.currentTopic}`,
     )
   } catch (error) {
     console.error(
-      `Failed to get lesson ${lessonId} in section ${sectionId} for topic: ${topicStore.currentTopic}`,
+      `Failed to get lesson ${lessonId} in section ${sectionId} for topic ${topicStore.currentTopic}`,
       error,
     )
     throw error

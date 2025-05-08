@@ -281,9 +281,20 @@ const switchTopic = (topic) => {
 
 // Load data when the component mounts
 onMounted(async () => {
+  // Make sure topics are initialized
+  if (!topicStore.isLoaded) {
+    topicStore.loadTopicPreference()
+    await topicStore.initializeTopics()
+  } else {
+    // Even if topics are loaded, make sure we have all available curricula
+    await topicStore.initializeTopics()
+  }
+
   await loadCurriculum()
   await calculateProgress()
   await updateSectionCompletionMap()
+
+  console.log('Available topics with curriculum:', topicStore.topicsWithCurriculum)
 })
 
 // Watch for topic changes to reload the curriculum

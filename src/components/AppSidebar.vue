@@ -8,7 +8,7 @@
         class="home-nav-link sidebar-nav-button sidebar-toggle d-none d-md-flex"
         :class="{ active: isHomeActive() }"
         title="Home"
-        @click="handleSectionClick()"
+        @click="closeMobileMenuOnNavigation"
       >
         <i class="bi bi-house-door-fill"></i>
       </router-link>
@@ -32,7 +32,7 @@
           class="interview-nav-link"
           :class="{ active: isShortListActive(), collapsed: isCollapsed }"
           title="Minicourse Recapper"
-          @click="handleSectionClick()"
+          @click="closeMobileMenuOnNavigation"
         >
           <span class="section-icon"><i class="bi bi-list-check"></i></span>
           <span class="section-title" v-show="!isCollapsed">Minicourse Recapper</span>
@@ -44,7 +44,7 @@
           class="interview-nav-link last"
           :class="{ active: isInterviewActive(), collapsed: isCollapsed }"
           title="Prep Interview Questions"
-          @click="handleSectionClick()"
+          @click="closeMobileMenuOnNavigation"
         >
           <span class="section-icon"><i class="bi bi-question-circle-fill"></i></span>
           <span class="section-title" v-show="!isCollapsed">Prep Interview Questions</span>
@@ -95,7 +95,7 @@
               completed: isLessonCompleted(index, lessonIndex),
               active: isLessonActive(index, lessonIndex),
             }"
-            @click="scrollToSection(index)"
+            @click="closeMobileMenuOnNavigation"
           >
             {{ lesson.title }}
           </router-link>
@@ -107,7 +107,7 @@
               completed: isChallengeCompleted(index),
               active: isChallengeActive(index),
             }"
-            @click="scrollToSection(index)"
+            @click="closeMobileMenuOnNavigation"
           >
             Section Challenge
           </router-link>
@@ -238,6 +238,12 @@ onMounted(async () => {
 })
 
 const handleSectionClick = (sectionIndex) => {
+  // Don't close mobile menu when clicking on expandable sections
+  // Only if it's a direct navigation (non-numeric sectionIndex like '/' or other paths)
+  if (window.innerWidth < 768 && typeof sectionIndex !== 'number') {
+    emit('close')
+  }
+
   // If sidebar is collapsed, expand it first then open the section
   if (props.isCollapsed) {
     const menuLinkURL = sectionIndex && sectionIndex.RouterLink
@@ -348,6 +354,12 @@ const isLessonCompleted = (sectionIndex, lessonIndex) => {
 
 const isChallengeCompleted = (sectionIndex) => {
   return progressStore.isChallengeCompleted(sectionIndex)
+}
+
+const closeMobileMenuOnNavigation = () => {
+  if (window.innerWidth < 768) {
+    emit('close')
+  }
 }
 </script>
 

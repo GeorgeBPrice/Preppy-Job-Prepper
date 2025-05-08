@@ -11,25 +11,27 @@
 
           <!-- Logo -->
           <div class="logo">
-            <svg width="50" height="30" viewBox="0 0 70 40" class="logo-svg">
-              <defs>
-                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#4F46E5" />
-                  <stop offset="100%" stop-color="#7C3AED" />
-                </linearGradient>
-              </defs>
-              <rect width="70" height="40" rx="8" fill="url(#logoGradient)" />
-              <text
-                x="10"
-                y="25"
-                font-family="Arial, sans-serif"
-                font-size="14"
-                font-weight="bold"
-                fill="white"
-              >
-                PreppY
-              </text>
-            </svg>
+            <router-link to="/">
+              <svg width="50" height="30" viewBox="0 0 70 40" class="logo-svg">
+                <defs>
+                  <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#4F46E5" />
+                    <stop offset="100%" stop-color="#7C3AED" />
+                  </linearGradient>
+                </defs>
+                <rect width="70" height="40" rx="8" fill="url(#logoGradient)" />
+                <text
+                  x="10"
+                  y="25"
+                  font-family="Arial, sans-serif"
+                  font-size="14"
+                  font-weight="bold"
+                  fill="white"
+                >
+                  PreppY
+                </text>
+              </svg>
+            </router-link>
           </div>
 
           <!-- Topic Selector Dropdown -->
@@ -54,9 +56,7 @@
           <h1 class="gradient-text d-none d-md-block">
             {{ topicStore.currentTopicName }} Job Prepper
           </h1>
-          <h1 class="gradient-text d-inline-block d-md-none">
-            {{ topicStore.topicShortName }} Prepper
-          </h1>
+          <h1 class="gradient-text d-none">{{ topicStore.topicShortName }} Prepper</h1>
         </div>
         <!-- Middle section: Search bar (only visible on desktop) -->
         <div class="header-center d-none d-md-block">
@@ -111,7 +111,7 @@
 import ProgressBar from './ProgressBar.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import SearchBar from './SearchBar.vue'
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
 import { useTopicStore } from '../store/topic'
@@ -125,6 +125,22 @@ const mobileMenuOpen = ref(false)
 const searchExpanded = ref(false)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
 const selectedTopic = ref('javascript') // Added ref for topic selection
+
+// Define props to receive mobile menu state from App.vue
+const props = defineProps({
+  isMobileMenuOpenExternal: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+// Watch external mobile menu state changes
+watch(
+  () => props.isMobileMenuOpenExternal,
+  (newState) => {
+    mobileMenuOpen.value = newState
+  },
+)
 
 // Check if there's any user progress to determine if we should show the continue button
 const hasProgress = computed(() => {

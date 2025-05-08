@@ -13,7 +13,7 @@ export const useTopicStore = defineStore('topic', {
       { value: 'devops', label: 'Azure DevOps' },
       { value: 'ai', label: 'AI Concepts' },
     ],
-    topicsWithCurriculum: ['javascript'],
+    topicsWithCurriculum: ['javascript', 'csharp', 'ai', 'typescript', 'react', 'devops'],
     isLoaded: false,
   }),
 
@@ -68,8 +68,8 @@ export const useTopicStore = defineStore('topic', {
         // Try to dynamically import the curriculum
         const module = await import(`../data/topic/${topic}/curriculum.js`)
 
-        // Verify that the module has a curriculum property
-        if (module && (module.curriculum || module.default)) {
+        // Verify that the module has content
+        if (module) {
           // Add to available topics if not already there
           if (!this.topicsWithCurriculum.includes(topic)) {
             this.topicsWithCurriculum.push(topic)
@@ -80,17 +80,33 @@ export const useTopicStore = defineStore('topic', {
           return false
         }
       } catch (e) {
-        // If import fails, the curriculum doesn't exist
-        console.error(`Curriculum not found for topic: ${topic}`, e)
-        return false
+        try {
+          // Try alternative import approach for sections
+          const sectionModule = await import(
+            `../data/topic/${topic}/sections/curriculum-section1.js`
+          )
+          if (sectionModule) {
+            if (!this.topicsWithCurriculum.includes(topic)) {
+              this.topicsWithCurriculum.push(topic)
+            }
+            return true
+          }
+        } catch {
+          // If both imports fail, the curriculum doesn't exist
+          console.error(`Curriculum not found for topic: ${topic}`, e)
+          return false
+        }
       }
     },
 
     // Update the initializeTopics method to include default topics
     async initializeTopics() {
-      // First, ensure JavaScript is always included (since it's our default)
-      if (!this.topicsWithCurriculum.includes('javascript')) {
-        this.topicsWithCurriculum.push('javascript')
+      // First, ensure all pre-defined topics are included
+      const defaultTopics = ['javascript', 'csharp', 'ai', 'typescript', 'react', 'devops']
+      for (const topic of defaultTopics) {
+        if (!this.topicsWithCurriculum.includes(topic)) {
+          this.topicsWithCurriculum.push(topic)
+        }
       }
 
       // Then check all available topics for curriculum
