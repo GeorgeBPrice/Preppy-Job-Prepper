@@ -16,6 +16,9 @@ export const formatMarkdown = (markdown) => {
   // Process code blocks first (to avoid processing markdown inside code blocks)
   formatted = formatCodeBlocks(formatted)
 
+  // Simple graphics
+  formatted = formatGraphics(formatted)
+
   // Format headers
   formatted = formatHeaders(formatted)
 
@@ -43,6 +46,78 @@ export const formatMarkdown = (markdown) => {
   return formatted
 }
 
+/**
+ * Process custom graphic tags
+ */
+function formatGraphics(text) {
+  return text.replace(
+    /<graphic type="([^"]+)" title="([^"]+)">([\s\S]*?)<\/graphic>/g,
+    (match, type, title, content) => {
+      const items =
+        content.match(/<item label="([^"]+)" color="([^"]+)" (?:size|width)="([^"]+)"\/>/g) || []
+      const graphicItems = items.map((item) => {
+        const [, label, color, dimension] = item.match(
+          /label="([^"]+)" color="([^"]+)" (?:size|width)="([^"]+)"/,
+        )
+        return { label, color, dimension }
+      })
+
+      if (type === 'circle-diagram') {
+        return `
+          <div class="graphic-circle-diagram">
+            <h5>${title}</h5>
+            <div class="circles">
+              ${graphicItems
+                .map(
+                  (item) => `
+                <div class="circle" style="background: ${item.color}; width: ${item.dimension}; height: ${item.dimension};">
+                  <span>${item.label}</span>
+                </div>
+              `,
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+      } else if (type === 'bar-diagram') {
+        return `
+          <div class="graphic-bar-diagram">
+            <h5>${title}</h5>
+            <div class="bars">
+              ${graphicItems
+                .map(
+                  (item) => `
+                <div class="bar" style="background: ${item.color}; width: ${item.dimension};">
+                  <span>${item.label}</span>
+                </div>
+              `,
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+      } else if (type === 'nested-circles') {
+        return `
+          <div class="graphic-nested-circles">
+            <h5>${title}</h5>
+            <div class="nested-circles-container">
+              ${graphicItems
+                .map(
+                  (item, i) => `
+                <div class="nested-circle" style="background: ${item.color}; width: ${item.dimension}; height: ${item.dimension}; z-index: ${graphicItems.length - i};">
+                  <span>${item.label}</span>
+                </div>
+              `,
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+      }
+      return `<p>Unsupported graphic type: ${type}</p>`
+    },
+  )
+}
 /**
  * Format code blocks with syntax highlighting
  */

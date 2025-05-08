@@ -1,10 +1,10 @@
 <template>
   <div class="home">
     <div class="hero-section">
-      <h1>JavaScript Job Prepper</h1>
+      <h1>{{ topicStore.currentTopicName }} Job Prepper</h1>
       <p class="lead">
-        Review core JavaScript concepts for <strong>Mid-level to Senior</strong> Full Stack or
-        Application Developer role job interviews
+        Review core {{ topicStore.currentTopicName }} concepts for
+        <strong>Mid-level to Senior</strong> Full Stack or Application Developer role job interviews
       </p>
       <div class="action-buttons">
         <button
@@ -21,14 +21,14 @@
     </div>
 
     <!-- Curriculum Lessons Overview -->
-    <div class="curriculum-overview">
+    <div v-if="topicHasCurriculum" class="curriculum-overview">
       <h2 class="section-title">Course Overview</h2>
       <p class="section-description core">
-        <strong>10 Core Sections</strong>
+        <strong>{{ currentCurriculum.length }} Core Sections</strong>
       </p>
 
       <div class="section-cards">
-        <div v-for="(section, index) in curriculum" :key="index" class="section-card">
+        <div v-for="(section, index) in currentCurriculum" :key="index" class="section-card">
           <div :class="['card', { 'card-completed': isSectionCompleted(index) }]">
             <div class="card-header">
               <div class="section-number">{{ index + 1 }}</div>
@@ -54,26 +54,47 @@
                 </ul>
               </div>
               <router-link
+                v-if="getSectionStatus(index) !== 'in-progress'"
                 :to="{ name: 'lesson', params: { sectionId: index + 1, lessonId: 1 } }"
                 class="btn btn-primary start-btn"
               >
                 <template v-if="getSectionStatus(index) === 'completed'">
                   <i class="bi bi-check-circle-fill me-1"></i> Completed
                 </template>
-                <template v-else-if="getSectionStatus(index) === 'in-progress'">
-                  <i class="bi bi-play-fill me-1"></i> Continue Lesson
-                </template>
                 <template v-else> <i class="bi bi-play-fill me-1"></i> Start Lesson </template>
               </router-link>
+              <button v-else @click="continueProgress" class="btn btn-primary start-btn">
+                <i class="bi bi-play-fill me-1"></i> Continue Lesson
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    <div v-else class="curriculum-coming-soon">
+      <h2 class="section-title">{{ topicStore.currentTopicName }} Curriculum Coming Soon</h2>
+      <p class="section-description">
+        The full curriculum for {{ topicStore.currentTopicName }} is currently under development.
+        Check back soon or switch to a different topic with available content.
+      </p>
+      <div class="available-topics">
+        <h4>Available Topics:</h4>
+        <div class="topic-buttons">
+          <button
+            v-for="topic in topicsWithCurriculum"
+            :key="topic.value"
+            @click="switchTopic(topic.value)"
+            class="btn btn-outline-primary me-3 mb-2"
+          >
+            {{ topic.label }}
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Job Ready Section -->
     <div class="job-ready-section">
-      <h2 class="section-title">Prepare for JavaScript Interview Success</h2>
+      <h2 class="section-title">Prepare for your Interview Success</h2>
       <p class="section-description">
         This curriculum is specifically designed to help you succeed in interviews for:
       </p>
@@ -93,7 +114,7 @@
               <i class="bi bi-stack"></i>
             </div>
             <h3>Full-Stack Developer</h3>
-            <p>Balance client-side expertise with server-side JavaScript knowledge.</p>
+            <p>Balance client-side expertise with server-side knowledge.</p>
           </div>
         </div>
         <div class="col-md-4">
@@ -111,17 +132,53 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
-import { curriculum } from '../data/curriculum'
+import { useTopicStore } from '../store/topic'
+import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
+const currentCurriculum = ref([])
+const loading = ref(true)
+const progressPercentage = ref(0)
+const sectionCompletionMap = ref({})
 
-const progressPercentage = computed(() => {
-  return Math.round(progressStore.overallProgress * 100)
-})
+// Load the curriculum for the current topic
+const loadCurriculum = async () => {
+  loading.value = true
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum:', error)
+    currentCurriculum.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const updateSectionCompletionMap = async () => {
+  if (!currentCurriculum.value || currentCurriculum.value.length === 0) return
+
+  const newMap = {}
+  for (let i = 0; i < currentCurriculum.value.length; i++) {
+    newMap[i] = await progressStore.isSectionCompleted(i)
+  }
+  sectionCompletionMap.value = newMap
+}
+
+// Calculate progress percentage
+const calculateProgress = async () => {
+  try {
+    const progress = await progressStore.overallProgress
+    progressPercentage.value = Math.round(progress * 100)
+  } catch (error) {
+    console.error('Error calculating progress:', error)
+    progressPercentage.value = 0
+  }
+}
 
 // Check if there is any progress (any completed lessons or challenges)
 const hasProgress = computed(() => {
@@ -131,8 +188,21 @@ const hasProgress = computed(() => {
   )
 })
 
+// Check if the current topic has a curriculum
+const topicHasCurriculum = computed(() => {
+  return topicStore.hasCurriculum && currentCurriculum.value.length > 0
+})
+
+// Get list of topics that have curriculum
+const topicsWithCurriculum = computed(() => {
+  return topicStore.availableTopics.filter((topic) =>
+    topicStore.topicsWithCurriculum.includes(topic.value),
+  )
+})
+
+// Progress tracking methods
 const isSectionCompleted = (sectionIndex) => {
-  return progressStore.isSectionCompleted(sectionIndex)
+  return sectionCompletionMap.value[sectionIndex] || false
 }
 
 const isLessonCompleted = (sectionIndex, lessonIndex) => {
@@ -141,10 +211,15 @@ const isLessonCompleted = (sectionIndex, lessonIndex) => {
 
 // Return the status of a section: 'not-started', 'in-progress', or 'completed'
 const getSectionStatus = (sectionIndex) => {
-  if (progressStore.isSectionCompleted(sectionIndex)) {
+  if (sectionCompletionMap.value[sectionIndex]) {
     return 'completed'
   }
-  const sectionLessons = curriculum[sectionIndex].lessons
+
+  if (!currentCurriculum.value[sectionIndex]?.lessons) {
+    return 'not-started'
+  }
+
+  const sectionLessons = currentCurriculum.value[sectionIndex].lessons
   for (let i = 0; i < sectionLessons.length; i++) {
     if (progressStore.isLessonCompleted(sectionIndex, i)) {
       return 'in-progress'
@@ -153,14 +228,24 @@ const getSectionStatus = (sectionIndex) => {
   return 'not-started'
 }
 
-// Starts from the very first lesson :D
+// Starts from the very first lesson
 const startLearning = () => {
-  router.push({ name: 'lesson', params: { sectionId: 1, lessonId: 1 } })
+  if (topicHasCurriculum.value) {
+    router.push({ name: 'lesson', params: { sectionId: 1, lessonId: 1 } })
+  } else {
+    // If no curriculum available, show a message or redirect to a different topic
+    alert('No curriculum available for this topic yet. Please select a different topic.')
+  }
 }
 
 // Continues to the next uncompleted lesson or challenge
-const continueProgress = () => {
-  const nextItem = progressStore.nextUncompletedItem
+const continueProgress = async () => {
+  if (!topicHasCurriculum.value) {
+    alert('No curriculum available for this topic yet. Please select a different topic.')
+    return
+  }
+
+  const nextItem = await progressStore.nextUncompletedItem
   if (nextItem) {
     if (nextItem.type === 'lesson') {
       router.push({
@@ -179,7 +264,7 @@ const continueProgress = () => {
       })
     }
   } else {
-    const lastSectionIndex = curriculum.length - 1
+    const lastSectionIndex = currentCurriculum.value.length - 1
     router.push({
       name: 'challenge',
       params: {
@@ -188,6 +273,67 @@ const continueProgress = () => {
     })
   }
 }
+
+// Switch to a different topic
+const switchTopic = (topic) => {
+  topicStore.setTopic(topic)
+}
+
+// Load data when the component mounts
+onMounted(async () => {
+  // Make sure topics are initialized
+  if (!topicStore.isLoaded) {
+    topicStore.loadTopicPreference()
+    await topicStore.initializeTopics()
+  } else {
+    // Even if topics are loaded, make sure we have all available curricula
+    await topicStore.initializeTopics()
+  }
+
+  await loadCurriculum()
+  await calculateProgress()
+  await updateSectionCompletionMap()
+
+  console.log('Available topics with curriculum:', topicStore.topicsWithCurriculum)
+})
+
+// Watch for topic changes to reload the curriculum
+watch(
+  () => topicStore.currentTopic,
+  async () => {
+    await loadCurriculum()
+    await calculateProgress()
+    await updateSectionCompletionMap()
+  },
+)
+
+// Watch for changes in progress store
+watch(
+  () => progressStore.topicProgress,
+  async () => {
+    await calculateProgress()
+    await updateSectionCompletionMap()
+  },
+  { deep: true },
+)
+
+watch(
+  () => progressStore._forceUpdate,
+  async () => {
+    await calculateProgress()
+    await updateSectionCompletionMap()
+  },
+)
+
+// Also watch the completedLessons specifically
+watch(
+  () => progressStore.completedLessons,
+  async () => {
+    await calculateProgress()
+    await updateSectionCompletionMap()
+  },
+  { deep: true },
+)
 </script>
 
 <style scoped>
@@ -237,7 +383,8 @@ body.dark-mode {
   margin-top: 30px;
 }
 
-.curriculum-overview {
+.curriculum-overview,
+.curriculum-coming-soon {
   margin-bottom: 60px;
 }
 
@@ -281,6 +428,14 @@ body.dark-mode {
 
 .section-card {
   height: 100%;
+}
+
+.available-topics {
+  margin-top: 30px;
+}
+
+.topic-buttons {
+  margin-top: 15px;
 }
 
 .card {

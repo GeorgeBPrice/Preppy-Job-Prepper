@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 // Theme store to manage light/dark mode
 export const useThemeStore = defineStore('theme', {
   state: () => ({
-    darkMode: false,
+    darkMode: true,
     // Store the preference in localStorage if available
     isLoaded: false,
   }),
@@ -52,14 +52,16 @@ export const useThemeStore = defineStore('theme', {
         if (savedTheme !== null) {
           this.darkMode = savedTheme === 'true'
         } else {
-          // Use system preference if available
-          this.darkMode =
-            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          // Always default to dark mode regardless of system preference
+          this.darkMode = true
         }
         this.applyTheme()
         this.isLoaded = true
       } catch (error) {
         console.error('Could not load theme preference:', error)
+        // Default to dark mode in case of error
+        this.darkMode = true
+        this.applyTheme()
         this.isLoaded = true
       }
     },

@@ -2,8 +2,7 @@
 
 const shortlistPrepper = {
   title: 'Minicourse JS Recapper',
-  description:
-    'Master the 20 most essential JavaScript concepts that will help you pass JavaScript interviews.',
+  description: '',
   lessons: [
     {
       title: '20 Essential JavaScript Concepts',
@@ -153,9 +152,9 @@ console.log(user.greetArrow()); // "Hello, I'm undefined"</code></pre>
         <p><strong>Promises:</strong> Objects representing the eventual completion or failure of an asynchronous operation.</p>
         <ul>
           <li>States: pending, fulfilled, rejected</li>
-          <li>Methods: .then(), .catch(), .finally()</li>
-          <li>Creating promises: new Promise((resolve, reject) => {})</li>
-          <li>Combining promises: Promise.all(), Promise.race(), Promise.allSettled()</li>
+          <li>Methods: <code>.then()</code>, <code>.catch()</code>, <code>.finally()</code></li>
+          <li>Creating promises: <code>new Promise((resolve, reject) => {})</code></li>
+          <li>Combining promises: <code>Promise.all()</code>, <code>Promise.race()</code>, <code>Promise.allSettled()</code></li>
         </ul>
 
         <p><strong>Async/Await:</strong> Syntactic sugar over promises that allows asynchronous code to be written in a more synchronous style.</p>

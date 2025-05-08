@@ -8,7 +8,7 @@
         class="home-nav-link sidebar-nav-button sidebar-toggle d-none d-md-flex"
         :class="{ active: isHomeActive() }"
         title="Home"
-        @click="handleSectionClick()"
+        @click="closeMobileMenuOnNavigation"
       >
         <i class="bi bi-house-door-fill"></i>
       </router-link>
@@ -32,7 +32,7 @@
           class="interview-nav-link"
           :class="{ active: isShortListActive(), collapsed: isCollapsed }"
           title="Minicourse Recapper"
-          @click="handleSectionClick()"
+          @click="closeMobileMenuOnNavigation"
         >
           <span class="section-icon"><i class="bi bi-list-check"></i></span>
           <span class="section-title" v-show="!isCollapsed">Minicourse Recapper</span>
@@ -44,19 +44,22 @@
           class="interview-nav-link last"
           :class="{ active: isInterviewActive(), collapsed: isCollapsed }"
           title="Prep Interview Questions"
-          @click="handleSectionClick()"
+          @click="closeMobileMenuOnNavigation"
         >
           <span class="section-icon"><i class="bi bi-question-circle-fill"></i></span>
           <span class="section-title" v-show="!isCollapsed">Prep Interview Questions</span>
         </router-link>
       </div>
 
-      <!-- Curriculum Sections -->
-      <div :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }">
+      <!-- Curriculum Sections - Only show if curriculum exists for the topic -->
+      <div
+        v-if="topicStore.hasCurriculum && currentCurriculum.length > 0"
+        :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }"
+      >
         <label>{{ isCollapsed ? 'Course' : 'Full Prepper Course' }}</label>
       </div>
       <div
-        v-for="(section, index) in curriculum"
+        v-for="(section, index) in currentCurriculum"
         :key="`section-${index}`"
         class="section-item"
         :ref="
@@ -92,7 +95,7 @@
               completed: isLessonCompleted(index, lessonIndex),
               active: isLessonActive(index, lessonIndex),
             }"
-            @click="scrollToSection(index)"
+            @click="closeMobileMenuOnNavigation"
           >
             {{ lesson.title }}
           </router-link>
@@ -104,11 +107,25 @@
               completed: isChallengeCompleted(index),
               active: isChallengeActive(index),
             }"
-            @click="scrollToSection(index)"
+            @click="closeMobileMenuOnNavigation"
           >
             Section Challenge
           </router-link>
         </div>
+      </div>
+
+      <!-- Show message if no curriculum is available -->
+      <div
+        v-if="!loading && topicStore.hasCurriculum && currentCurriculum.length === 0"
+        class="no-curriculum-message"
+      >
+        <p class="text-center">
+          No curriculum is available for {{ topicStore.currentTopicName }} at this time.
+        </p>
+      </div>
+
+      <div v-if="loading" class="loading-message">
+        <p class="text-center">Loading {{ topicStore.currentTopicName }} curriculum...</p>
       </div>
     </div>
 
@@ -119,8 +136,9 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useProgressStore } from '../store/progress'
-import { curriculum } from '../data/curriculum'
+import { useTopicStore } from '../store/topic'
 import { useRoute } from 'vue-router'
+import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 const props = defineProps({
   isCollapsed: {
@@ -133,9 +151,36 @@ const emit = defineEmits(['toggle', 'close', 'expand'])
 
 const route = useRoute()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const openSections = ref([])
 const sidebarContent = ref(null)
 const sectionRefs = ref({})
+const currentCurriculum = ref([])
+const loading = ref(true)
+const sectionCompletionMap = ref({})
+
+// Load the curriculum for the current topic
+const loadCurriculum = async () => {
+  loading.value = true
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum for sidebar:', error)
+    currentCurriculum.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const updateCompletionMap = async () => {
+  if (!currentCurriculum.value || currentCurriculum.value.length === 0) return
+
+  const completionMap = {}
+  for (let i = 0; i < currentCurriculum.value.length; i++) {
+    completionMap[i] = await progressStore.isSectionCompleted(i)
+  }
+  sectionCompletionMap.value = completionMap
+}
 
 // Watch for route changes to update active sections and scroll position
 watch(
@@ -157,8 +202,30 @@ watch(
   { immediate: true },
 )
 
+// Watch for topic changes to update curriculum
+watch(
+  () => topicStore.currentTopic,
+  async () => {
+    openSections.value = []
+    await loadCurriculum()
+    updateCompletionMap()
+  },
+)
+
+// watcher to update completion status when progress changes
+watch(
+  () => progressStore.topicProgress,
+  () => {
+    updateCompletionMap()
+  },
+  { deep: true },
+)
+
 // Initialize sidebar state based on the current route
 onMounted(async () => {
+  await loadCurriculum()
+  updateCompletionMap()
+
   const currentSectionId = parseInt(route.params.sectionId)
 
   if (currentSectionId) {
@@ -171,9 +238,15 @@ onMounted(async () => {
 })
 
 const handleSectionClick = (sectionIndex) => {
+  // Don't close mobile menu when clicking on expandable sections
+  // Only if it's a direct navigation (non-numeric sectionIndex like '/' or other paths)
+  if (window.innerWidth < 768 && typeof sectionIndex !== 'number') {
+    emit('close')
+  }
+
   // If sidebar is collapsed, expand it first then open the section
   if (props.isCollapsed) {
-    const menuLinkURL = sectionIndex.RouterLink
+    const menuLinkURL = sectionIndex && sectionIndex.RouterLink
     // only the lessons sections exand the menu, as they have sub menu items
     if (
       menuLinkURL !== '/minicourse-recapper' ||
@@ -268,11 +341,11 @@ const isInterviewActive = () => {
 }
 
 const isShortListActive = () => {
-  return route.name === '/minicourse-recapper'
+  return route.name === 'shortlist' || route.name === 'shortlist-lesson'
 }
 
 const isSectionCompleted = (sectionIndex) => {
-  return progressStore.isSectionCompleted(sectionIndex)
+  return sectionCompletionMap.value[sectionIndex] || false
 }
 
 const isLessonCompleted = (sectionIndex, lessonIndex) => {
@@ -281,6 +354,12 @@ const isLessonCompleted = (sectionIndex, lessonIndex) => {
 
 const isChallengeCompleted = (sectionIndex) => {
   return progressStore.isChallengeCompleted(sectionIndex)
+}
+
+const closeMobileMenuOnNavigation = () => {
+  if (window.innerWidth < 768) {
+    emit('close')
+  }
 }
 </script>
 
@@ -630,6 +709,15 @@ a.router-link-active.router-link-exact-active.interview-nav-link {
 
 .interview-nav-link i {
   font-size: 14px;
+}
+
+.no-curriculum-message,
+.loading-message {
+  padding: 15px;
+  margin: 20px 0;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.9rem;
 }
 
 /* Media query for mobile */

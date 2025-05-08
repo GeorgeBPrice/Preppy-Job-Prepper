@@ -181,8 +181,9 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
+import { useTopicStore } from '../store/topic'
+import { getSection, getCurrentCurriculum } from '../utils/curriculumLoader'
 import { useAIStore } from '../store/ai'
-import { curriculum } from '../data/curriculum'
 import CodeEditor from '../components/CodeEditor.vue'
 import BackToTop from '../components/BackToTop.vue'
 import Prism from 'prismjs'
@@ -192,6 +193,7 @@ import { formatMarkdown } from '../theme/markdownFormatter'
 const route = useRoute()
 const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const aiStore = useAIStore()
 const loading = ref(true)
 const isCompleted = ref(false)
@@ -200,6 +202,18 @@ const apiKey = ref('')
 const configSaveStatus = ref('')
 const isTestingConnection = ref(false)
 const savedResponse = ref(null)
+const section = ref(null)
+const currentCurriculum = ref([])
+
+// Load curriculum for the current topic
+const loadCurriculum = async () => {
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum:', error)
+    currentCurriculum.value = []
+  }
+}
 
 // Add a computed property and a watcher
 const modelVersion = computed({
@@ -243,13 +257,18 @@ const configButtonClass = computed(() => {
 
 const sectionId = computed(() => route.params.sectionId)
 
-const section = computed(() => {
-  const sectionIndex = Number(sectionId.value) - 1
-  return curriculum[sectionIndex] || null
-})
+// Update the section computed property to use the current topic's section
+const loadSection = async () => {
+  try {
+    section.value = await getSection(parseInt(sectionId.value))
+  } catch (error) {
+    console.error('Error loading section:', error)
+    section.value = null
+  }
+}
 
 const hasNextSection = computed(() => {
-  return Number(sectionId.value) < curriculum.length
+  return Number(sectionId.value) < currentCurriculum.value.length
 })
 
 // Format AI response with markdown and code highlighting
@@ -306,8 +325,12 @@ const getSavedProviderLabel = (providerValue) => {
   return provider ? provider.label : 'Unknown AI'
 }
 
-const loadContent = () => {
+const loadContent = async () => {
   loading.value = true
+
+  await loadCurriculum()
+  await loadSection()
+
   setTimeout(() => {
     loading.value = false
     checkCompletion()
@@ -333,13 +356,15 @@ const loadSavedResponse = () => {
 const toggleCompletion = () => {
   const sectionIndex = Number(sectionId.value) - 1
   if (isCompleted.value) {
-    progressStore.completeSectionChallenge(sectionIndex)
+    progressStore.completeSectionChallenge(sectionIndex, true)
   } else {
-    progressStore.uncompleteSectionChallenge(sectionIndex)
+    progressStore.uncompleteSectionChallenge(sectionIndex, true)
   }
 }
 
 const navigateToLastLesson = () => {
+  if (!section.value) return
+
   const lastLessonIndex = section.value.lessons.length
 
   router.push({
@@ -419,9 +444,9 @@ const handleCodeGraded = () => {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Load challenge content
-  loadContent()
+  await loadContent()
 
   // Load AI settings if not already loaded
   if (!aiStore.isLoaded) {
@@ -445,7 +470,8 @@ watch(
   },
 )
 
-watch(sectionId, () => {
+// Watch for changes in route or topic
+watch([sectionId, () => topicStore.currentTopic], () => {
   loadContent()
 })
 
