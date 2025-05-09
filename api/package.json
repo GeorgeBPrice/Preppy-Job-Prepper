@@ -1,0 +1,9 @@
+{
+  "name": "javascript-job-prepper-api",
+  "version": "1.1.0",
+  "description": "API endpoints for JavaScript Job Prepper",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
