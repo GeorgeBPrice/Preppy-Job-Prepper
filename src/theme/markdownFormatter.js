@@ -16,6 +16,9 @@ export const formatMarkdown = (markdown) => {
   // Process code blocks first (to avoid processing markdown inside code blocks)
   formatted = formatCodeBlocks(formatted)
 
+  // Also process double backtick code blocks
+  formatted = formatSingleTickCodeBlocks(formatted)
+
   // Simple graphics
   formatted = formatGraphics(formatted)
 
@@ -118,11 +121,13 @@ function formatGraphics(text) {
     },
   )
 }
+
 /**
  * Format code blocks with syntax highlighting
  */
 const formatCodeBlocks = (text) => {
-  return text.replace(/```([\w-]*)\n([\s\S]+?)\n```/g, (match, language, code) => {
+  // Improved regex to handle various formats of code blocks with more flexibility
+  return text.replace(/```([\w-]*)\s*([\s\S]+?)\s*```/g, (match, language, code) => {
     language = language.trim().toLowerCase()
 
     // Map some common language aliases
@@ -154,6 +159,27 @@ const formatCodeBlocks = (text) => {
     }
 
     // Fallback to plain code block
+    return `<pre class="scrollable-code"><code>${escapeHtml(code.trim())}</code></pre>`
+  })
+}
+
+// Also, let's add a second pass to catch any code blocks that are formatted with `` (double backticks)
+const formatSingleTickCodeBlocks = (text) => {
+  return text.replace(/``\s*([\w-]*)\s*\n?([\s\S]+?)\s*``/g, (match, language, code) => {
+    language = language.trim().toLowerCase()
+
+    // Use javascript as default language if not specified
+    if (!language) language = 'javascript'
+
+    try {
+      if (Prism.languages[language]) {
+        const highlighted = Prism.highlight(code.trim(), Prism.languages[language], language)
+        return `<pre class="language-${language} scrollable-code"><code class="language-${language}">${highlighted}</code></pre>`
+      }
+    } catch (e) {
+      console.warn('Error highlighting code with double backticks:', e)
+    }
+
     return `<pre class="scrollable-code"><code>${escapeHtml(code.trim())}</code></pre>`
   })
 }

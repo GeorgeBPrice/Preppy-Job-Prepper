@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useProgressStore } from '../store/progress'
 import { useAIStore } from '../store/ai'
 import Prism from 'prismjs'
@@ -199,6 +199,9 @@ const submitAndGradeCode = async () => {
         sectionTitle,
         savedCode,
         aiStore.version,
+        aiStore.customModel,
+        aiStore.customEndpoint,
+        aiStore.customHeaders,
       )
 
       // Store the AI response
@@ -210,6 +213,14 @@ const submitAndGradeCode = async () => {
       }
 
       emit('code-graded', response)
+
+      // Scroll to the AI Code-Review section
+      nextTick(() => {
+        const aiResponseSection = document.getElementById('ai-response-section')
+        if (aiResponseSection) {
+          aiResponseSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      })
     } catch (error) {
       aiStore.setError(error.message)
     } finally {

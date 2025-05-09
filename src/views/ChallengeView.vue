@@ -64,6 +64,24 @@
       <!-- AI Configuration section -->
       <div class="ai-config-section">
         <h3>AI Code Review Settings</h3>
+
+        <!-- Warning notice -->
+        <div class="ai-config-warning">
+          <p>
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Important:</strong> API keys and settings are stored in your browser's
+            localStorage only and are not transmitted to our servers. By using this feature, you
+            accept Terms-and-Conditions and acknowledge that you use this functionality at your own
+            risk.
+            <TermsAndConditions />
+          </p>
+          <div v-if="!aiStore.termsAccepted" class="mt-2">
+            <button @click="acceptTermsInline" class="btn btn-sm btn-warning">
+              Accept Terms to Continue
+            </button>
+          </div>
+        </div>
+
         <!-- Error message display -->
         <div class="alert alert-danger" v-if="aiStore.error">
           <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -88,7 +106,30 @@
               </option>
             </select>
           </div>
-          <div class="config-item">
+
+          <div class="config-item" v-if="aiStore.isCustomProvider">
+            <label for="custom-endpoint" class="form-label">API Endpoint</label>
+            <input
+              id="custom-endpoint"
+              type="text"
+              v-model="customEndpoint"
+              class="form-control"
+              placeholder="https://api.example.com/v1/chat"
+            />
+          </div>
+
+          <div class="config-item" v-if="aiStore.isCustomProvider">
+            <label for="custom-model" class="form-label">Model Name</label>
+            <input
+              id="custom-model"
+              type="text"
+              v-model="customModel"
+              class="form-control"
+              placeholder="model-name"
+            />
+          </div>
+
+          <div class="config-item" v-else>
             <label for="ai-version" class="form-label">Model Version</label>
             <input
               id="ai-version"
@@ -98,6 +139,7 @@
               placeholder="latest"
             />
           </div>
+
           <div class="config-item api-key-input">
             <label for="api-key" class="form-label">API Key</label>
             <input
@@ -108,9 +150,15 @@
               placeholder="Your API Key"
             />
           </div>
+
           <div class="config-item config-button-item">
             <label class="form-label invisible">Action</label>
-            <button @click="saveAIConfig" class="btn" :class="configButtonClass">
+            <button
+              @click="saveAIConfig"
+              class="btn"
+              :class="configButtonClass"
+              :disabled="!apiKey"
+            >
               <span v-if="isTestingConnection">
                 <span
                   class="spinner-border spinner-border-sm me-2"
@@ -125,6 +173,26 @@
             </button>
           </div>
         </div>
+
+        <!-- Custom Headers for advanced users -->
+        <div class="config-row mt-3" v-if="aiStore.isCustomProvider">
+          <div class="config-item" style="flex: 1">
+            <label for="custom-headers" class="form-label">
+              Custom Headers (optional, JSON format)
+              <i
+                class="bi bi-info-circle"
+                title="Provide custom headers in JSON format, e.g. { 'Authorization': 'Bearer YOUR_KEY' }"
+              ></i>
+            </label>
+            <textarea
+              id="custom-headers"
+              v-model="customHeaders"
+              class="form-control"
+              placeholder='{ "Content-Type": "application/json", "Authorization": "Bearer YOUR_KEY" }'
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
       </div>
 
       <CodeEditor
@@ -134,7 +202,11 @@
       />
 
       <!-- AI Response section -->
-      <div class="ai-response-section" v-if="aiStore.lastResponse || aiStore.isLoading">
+      <div
+        id="ai-response-section"
+        class="ai-response-section"
+        v-if="aiStore.lastResponse || aiStore.isLoading"
+      >
         <h3>AI Code-Review</h3>
 
         <div v-if="aiStore.isLoading" class="loading-response">
@@ -189,6 +261,7 @@ import BackToTop from '../components/BackToTop.vue'
 import Prism from 'prismjs'
 import { validateApiKey, testApiConnection, MODEL_MAPPINGS } from '../utils/aiService'
 import { formatMarkdown } from '../theme/markdownFormatter'
+import TermsAndConditions from '../components/TermsAndConditions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -204,6 +277,9 @@ const isTestingConnection = ref(false)
 const savedResponse = ref(null)
 const section = ref(null)
 const currentCurriculum = ref([])
+const customModel = ref('')
+const customEndpoint = ref('')
+const customHeaders = ref('')
 
 // Load curriculum for the current topic
 const loadCurriculum = async () => {
@@ -392,13 +468,22 @@ const navigateToNextSection = () => {
 const handleProviderChange = () => {
   // Reset the save button status when provider changes
   configSaveStatus.value = ''
+
+  // Update custom model and endpoint fields if switch to custom provider
+  if (aiStore.isCustomProvider) {
+    customModel.value = aiStore.customModel || ''
+    customEndpoint.value = aiStore.customEndpoint || ''
+    customHeaders.value = aiStore.customHeaders || ''
+  }
 }
 
 // Save AI configuration settings with validation
 const saveAIConfig = async () => {
+  // Clear any previous errors
   aiStore.clearError()
   configSaveStatus.value = ''
 
+  // Check for API key
   if (!apiKey.value.trim()) {
     configSaveStatus.value = 'Invalid API Key'
     return
@@ -411,10 +496,43 @@ const saveAIConfig = async () => {
     return
   }
 
+  // For custom provider, validate the endpoint and model
+  if (aiStore.isCustomProvider) {
+    if (!customEndpoint.value || !customEndpoint.value.startsWith('http')) {
+      aiStore.setError('Please provide a valid API endpoint URL')
+      configSaveStatus.value = 'Invalid Endpoint'
+      return
+    }
+
+    if (!customModel.value) {
+      aiStore.setError('Please provide a model name')
+      configSaveStatus.value = 'Model Required'
+      return
+    }
+
+    // Save custom settings
+    aiStore.setCustomModel(customModel.value)
+    aiStore.setCustomEndpoint(customEndpoint.value)
+    aiStore.setCustomHeaders(customHeaders.value)
+  }
+
+  // Check if terms are accepted before proceeding
+  if (!aiStore.termsAccepted) {
+    aiStore.setError('You must accept the Terms and Conditions to use this feature')
+    configSaveStatus.value = 'Terms Required'
+    return
+  }
+
   // Test the connection with the API
   isTestingConnection.value = true
   try {
-    await testApiConnection(aiStore.provider, apiKey.value)
+    await testApiConnection(
+      aiStore.provider,
+      apiKey.value,
+      customModel.value,
+      customEndpoint.value,
+      customHeaders.value,
+    )
 
     // If successful, save to store
     aiStore.setApiKey(apiKey.value)
@@ -444,6 +562,22 @@ const handleCodeGraded = () => {
   })
 }
 
+// Accept terms inline button
+const acceptTermsInline = () => {
+  aiStore.acceptTerms()
+  // Reset button text after accepting terms
+  configSaveStatus.value = ''
+}
+
+// Listen for terms acceptance event
+const listenForTermsAcceptance = () => {
+  document.addEventListener('terms-accepted', () => {
+    if (configSaveStatus.value === 'Terms Required') {
+      configSaveStatus.value = ''
+    }
+  })
+}
+
 onMounted(async () => {
   // Load challenge content
   await loadContent()
@@ -455,11 +589,17 @@ onMounted(async () => {
 
   // Set the apiKey from store
   apiKey.value = aiStore.apiKey
+  customModel.value = aiStore.customModel || ''
+  customEndpoint.value = aiStore.customEndpoint || ''
+  customHeaders.value = aiStore.customHeaders || ''
 
   // Apply Prism highlighting
   nextTick(() => {
     Prism.highlightAll()
   })
+
+  // Setup terms acceptance listener
+  listenForTermsAcceptance()
 })
 
 // Watch for changes in AI settings
@@ -467,6 +607,22 @@ watch(
   () => aiStore.apiKey,
   (newValue) => {
     apiKey.value = newValue
+  },
+)
+
+// Watch for changes in custom model
+watch(
+  () => aiStore.customModel,
+  (newValue) => {
+    customModel.value = newValue
+  },
+)
+
+// Watch for provider changes
+watch(
+  () => aiStore.provider,
+  () => {
+    handleProviderChange()
   },
 )
 
@@ -482,6 +638,17 @@ watch(
     nextTick(() => {
       Prism.highlightAll()
     })
+  },
+)
+
+// Watch for changes in terms acceptance state
+watch(
+  () => aiStore.termsAccepted,
+  (newValue) => {
+    // If terms were just accepted, reset the button text if it's showing "Terms Required"
+    if (newValue && configSaveStatus.value === 'Terms Required') {
+      configSaveStatus.value = ''
+    }
   },
 )
 </script>
@@ -584,6 +751,15 @@ watch(
   color: var(--text-color);
 }
 
+.ai-config-warning {
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background-color: rgba(var(--warning-color-rgb, 255, 193, 7), 0.1);
+  border-left: 4px solid var(--warning-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
 .config-row {
   display: flex;
   flex-wrap: wrap;
@@ -611,6 +787,38 @@ watch(
   margin-bottom: 6px;
   font-weight: 500;
   color: var(--text-color);
+}
+
+/* Dark mode fixes for form controls */
+:deep(.form-control),
+:deep(.form-select) {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+:deep(.form-select) {
+  appearance: auto;
+  background-image: none;
+}
+
+:deep(.form-select) option {
+  background-color: var(--bg-card);
+  color: var(--text-color);
+}
+
+:deep(.form-control:focus),
+:deep(.form-select:focus) {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
+}
+
+:deep(.form-control::placeholder),
+:deep(.form-select::placeholder) {
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 @media (max-width: 768px) {
