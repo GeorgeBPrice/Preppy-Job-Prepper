@@ -4,8 +4,6 @@ _Preppy-Job-Prepper_ is a comprehensive **Language Review** app designed to prep
 
 <img width="962" alt="Home - darkmode" src="https://github.com/user-attachments/assets/8a51451d-4e4e-42ad-970f-0eb516d6e693" />
 
-
-
 This is a **static application**, meaning it does not require a database to run. The curriculum content is managed through static data files (e.g., `curriculum.js`) or in-memory data structures, simplifying deployment and eliminating the need for backend server setup. User progress and code submissions are stored locally using `localStorage` and cookies.
 
 ## Features
@@ -19,11 +17,10 @@ This is a **static application**, meaning it does not require a database to run.
 - **Multiple AI Providers**: Choose from a range of AI models for code review, including Claude 3.5 Sonnet, GPT-4o, Mistral Large, and more, with configurable API keys and versions.
 - **Code Editor**: Write, save, and preview your solutions with syntax highlighting powered by Prism.js.
 - **Static Deployment**: Run the app entirely on the client side with no server or database required.
-  
+
 <img width="682" alt="Add you own API key" src="https://github.com/user-attachments/assets/a5a60595-fe68-4ff2-bffe-6a5352de7c9e" />
 
 <img width="1007" alt="AI Code Challenge Review - darkmode" src="https://github.com/user-attachments/assets/b642ac9b-5e3a-4b09-bf3d-c1c8f726cc76" />
-
 
 ## Key Technologies Used
 
@@ -40,8 +37,8 @@ This is a **static application**, meaning it does not require a database to run.
 
 ## Known Issues
 
-- **Untested AI Endpoints**: Not all AI provider endpoints (e.g., DeepSeek, Grok-3, LLaMA-3) have been fully tested, which may lead to inconsistent grading results.
-- **CORS Issues**: Some AI providers enforce Cross-Origin Resource Sharing (CORS) restrictions, preventing direct browser requests. A temporary workaround is provided below, but a long-term solution (e.g., implementing a proxy server) is recommended.
+- **Untested AI Endpoints**: Not all AI provider endpoints (e.g., DeepSeek, Grok-3, LLaMA-3).
+- **CORS Issues**: Some AI providers enforce Cross-Origin Resource Sharing (CORS) restrictions, preventing direct browser requests. A solution was implemented, per Vercel guide: https://vercel.com/guides/how-to-enable-cors.
 
 ## Improvements Coming
 
@@ -56,7 +53,7 @@ This is a **static application**, meaning it does not require a database to run.
 
 The app includes comprehensive curricula for multiple technologies:
 
-### JavaScript
+### For example, JavaScript
 
 Breaks down JavaScript concepts into 10 core areas crucial for interview success:
 

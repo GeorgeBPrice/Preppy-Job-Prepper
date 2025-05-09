@@ -53,7 +53,10 @@
             <h4>4. DATA STORAGE</h4>
             <p>
               4.1 <strong>Local Storage</strong>: Your API keys, settings, and responses are stored
-              locally in your browser's localStorage and are not transmitted to our servers.
+              locally in your browser's localStorage and are transmitted to our servers to resolve
+              the common CORS issue. Some AI providers enforce Cross-Origin Resource Sharing (CORS)
+              restrictions, preventing direct browser requests. A solution was implemented, per
+              Vercel guide: https://vercel.com/guides/how-to-enable-cors
             </p>
             <p>
               4.2 <strong>Data Security</strong>: While we implement reasonable security measures

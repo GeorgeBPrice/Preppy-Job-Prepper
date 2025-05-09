@@ -70,9 +70,9 @@
           <p>
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
             <strong>Important:</strong> API keys and settings are stored in your browser's
-            localStorage only and are not transmitted to our servers. By using this feature, you
-            accept Terms-and-Conditions and acknowledge that you use this functionality at your own
-            risk.
+            localStorage only and are transmitted to the Vercel server hosting this webiste. By
+            using this feature, you accept Terms-and-Conditions and acknowledge that you use this
+            functionality at your own risk.
             <TermsAndConditions />
           </p>
           <div v-if="!aiStore.termsAccepted" class="mt-2">
