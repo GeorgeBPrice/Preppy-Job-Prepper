@@ -17,6 +17,9 @@ const API_ENDPOINTS = {
   other: 'custom-endpoint', // This will be overridden with the user's custom endpoint
 }
 
+// Proxy API endpoint URL
+const PROXY_API_URL = '/api/proxy'
+
 // AI model mappings (export so we can hook into the models in the UI)
 export const MODEL_MAPPINGS = {
   'claude-3-5-sonnet': 'claude-3-5-sonnet-20240620',
@@ -297,7 +300,13 @@ export const submitCodeForGrading = async (
   const headers = getHeaders(provider, apiKey, customHeaders)
 
   try {
-    const response = await axios.post(endpoint, requestData, { headers })
+    // Use our proxy endpoint instead of calling the API directly
+    const response = await axios.post(PROXY_API_URL, {
+      target: endpoint,
+      data: requestData,
+      headers: headers,
+    })
+
     const responseText = extractResponseText(provider, response.data)
     return responseText
   } catch (error) {
@@ -407,7 +416,13 @@ export const testApiConnection = async (
   const headers = getHeaders(provider, apiKey, customHeaders)
 
   try {
-    const response = await axios.post(endpoint, requestData, { headers })
+    // Use our proxy endpoint instead of calling the API directly
+    const response = await axios.post(PROXY_API_URL, {
+      target: endpoint,
+      data: requestData,
+      headers: headers,
+    })
+
     return !!response.data // Return true if we got any response
   } catch (error) {
     console.error('API connection test failed:', error)
