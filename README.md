@@ -1,18 +1,29 @@
 # Preppy-Job-Prepper (AI Feedback)
 
-_Preppy-Job-Prepper_ is a comprehensive **Language Review** app designed to prepare professionals for job interviews in roles such of **Mid-level** to **Senior** level, for Full Stack, Web Developer or Application Developer positions. The app currently only covers core JavaScript concepts via concise lessons, interview focus examples, common interview questions, code challenges, and \*_AI-powered code grading and feedback_. The curriculum is broken down into 10 key sections ranging from fundamentals to advanced topics. There is also an Interview Questions section.
+_Preppy-Job-Prepper_ is a comprehensive **Language Review** app designed to prepare professionals for job interviews in roles such of **Mid-level** to **Senior** level, for Full Stack, Web Developer or Application Developer positions. The app covers multiple programming languages and technologies including JavaScript, TypeScript, React, C#, DevOps, and AI concepts via concise lessons, interview focus examples, common interview questions, code challenges, and \*_AI-powered code grading and feedback_. Each topic curriculum is broken down into key sections ranging from fundamentals to advanced topics, with comprehensive interview questions.
+
+<img width="962" alt="Home - darkmode" src="https://github.com/user-attachments/assets/8a51451d-4e4e-42ad-970f-0eb516d6e693" />
+
+
 
 This is a **static application**, meaning it does not require a database to run. The curriculum content is managed through static data files (e.g., `curriculum.js`) or in-memory data structures, simplifying deployment and eliminating the need for backend server setup. User progress and code submissions are stored locally using `localStorage` and cookies.
 
 ## Features
 
-- **Interactive Lessons**: Engage with detailed lessons across 10 core JavaScript areas, from fundamentals to advanced concepts.
+- **Multi-Language Support**: Learn and practice across JavaScript, TypeScript, React, C#, DevOps, and AI technologies.
+- **Interactive Lessons**: Engage with detailed lessons across core areas for each technology, from fundamentals to advanced concepts.
+- **Extensive Interview Questions**: Review comprehensive, well-formatted interview questions for each technology.
 - **Code Challenges**: Practice your skills with hands-on coding exercises and challenges.
-- **Progress Tracking**: Monitor your learning progress with a built-in system using `localStorage` and cookies.
+- **Enhanced Progress Tracking**: Monitor your learning progress with an improved reactive tracking system.
 - **AI-Powered Code Grading**: Submit your code for review and receive detailed feedback from various AI providers (e.g., Claude, GPT, Mistral).
 - **Multiple AI Providers**: Choose from a range of AI models for code review, including Claude 3.5 Sonnet, GPT-4o, Mistral Large, and more, with configurable API keys and versions.
 - **Code Editor**: Write, save, and preview your solutions with syntax highlighting powered by Prism.js.
 - **Static Deployment**: Run the app entirely on the client side with no server or database required.
+  
+<img width="682" alt="Add you own API key" src="https://github.com/user-attachments/assets/a5a60595-fe68-4ff2-bffe-6a5352de7c9e" />
+
+<img width="1007" alt="AI Code Challenge Review - darkmode" src="https://github.com/user-attachments/assets/b642ac9b-5e3a-4b09-bf3d-c1c8f726cc76" />
+
 
 ## Key Technologies Used
 
@@ -25,7 +36,7 @@ This is a **static application**, meaning it does not require a database to run.
 
 ## Version
 
-1.0.0
+1.1.0
 
 ## Known Issues
 
@@ -35,7 +46,7 @@ This is a **static application**, meaning it does not require a database to run.
 ## Improvements Coming
 
 - **Expanded AI Support**: Add and fully test additional AI providers like DeepSeek and LLaMA-3 for broader grading options.
-- **Improved Curriculum/more questions**: The curriculum is very ridgid at the moment, and more a "Review" format, than learning. We will refactor this in the future to improve it.
+- **More Technologies**: Continue expanding to additional programming languages and frameworks.
 - **Proxy Server Solution**: Implement a lightweight backend proxy to handle API requests, eliminating CORS issues permanently.
 - **Enhanced UI/UX**: Improve the code editor and lesson navigation with features like real-time linting and a progress dashboard.
 - **TypeScript Integration**: Gradually migrate the codebase to TypeScript for better type safety and scalability.
@@ -43,7 +54,11 @@ This is a **static application**, meaning it does not require a database to run.
 
 ## Curriculum Overview
 
-The app breaks down JavaScript concepts into 10 core areas crucial for interview success:
+The app includes comprehensive curricula for multiple technologies:
+
+### JavaScript
+
+Breaks down JavaScript concepts into 10 core areas crucial for interview success:
 
 1. **JavaScript Fundamentals**: Variables, data types, operators, control flow, functions, and type conversion.
 2. **Objects and Data Structures**: Object manipulation, arrays, Maps, and Sets.
@@ -55,8 +70,6 @@ The app breaks down JavaScript concepts into 10 core areas crucial for interview
 8. **Testing and Debugging**: Unit testing, debugging techniques, and common pitfalls.
 9. **Modern JavaScript Frameworks**: Component architecture, state management, and routing concepts.
 10. **Advanced JavaScript Concepts**: Prototypes, Web Workers, memory management, and TypeScript basics.
-
-This curriculum prepares you for roles like Web Developer, Full-Stack Developer, and Software Developer by focusing on practical, interview-relevant skills.
 
 ## Setup and Installation
 
@@ -116,18 +129,30 @@ Due to CORS restrictions, some AI providers may not allow direct requests from t
 
 ## Usage
 
-- **Navigate Lessons**: Use the sidebar or navigation buttons to explore the 10 sections.
+- **Select Technology**: Choose from JavaScript, TypeScript, React, C#, DevOps, or AI topics from the main menu.
+- **Navigate Lessons**: Use the sidebar or navigation buttons to explore the sections for each technology.
 - **Complete Challenges**: Write code in the editor, save your progress, and submit it for AI grading.
+- **Review Interview Questions**: Study comprehensive sets of interview questions organized by topic.
 - **Configure AI**: Select an AI provider, enter your API key, and optionally specify a version (default is "latest").
 - **Review Feedback**: View detailed AI responses with suggestions on correctness, quality, and best practices.
-- **Track Progress**: Mark lessons and challenges as completed, with data saved locally.
+- **Track Progress**: Mark lessons and challenges as completed, with data saved locally and visible in the improved progress bar.
 
 ## Contributing
 
-Contributions are disable for now. Feel free to email me any concearns or suggestions.
+Contributions are disabled for now. Feel free to email me any concerns or suggestions.
 
 ## License
 
 This project is licensed under a custom license that allows downloading and using the software but prohibits modification and redistribution. See the [LICENSE](LICENSE) file for details.
+
+## Updates
+
+### v1.1.0 - Content and UI Overhaul (May 2025)
+
+- **Multi-Language Support**: Added comprehensive curricula and interview questions for TypeScript, React, C#, DevOps, and AI technologies. Full courses coming soon.
+- **UI Improvements**: Enhanced progress tracking with improved reactivity and visual feedback
+- **Interview Questions**: Reformatted AI interview questions with better readability and code highlighting
+- **Content Structure**: Organized content with clear sectioning and consistent formatting
+- **Performance**: Improved store reactivity for better progress tracking and user experience
 
 ---

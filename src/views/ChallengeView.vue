@@ -64,6 +64,24 @@
       <!-- AI Configuration section -->
       <div class="ai-config-section">
         <h3>AI Code Review Settings</h3>
+
+        <!-- Warning notice -->
+        <div class="ai-config-warning">
+          <p>
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Important:</strong> API keys and settings are stored in your browser's
+            localStorage only and are not transmitted to our servers. By using this feature, you
+            accept Terms-and-Conditions and acknowledge that you use this functionality at your own
+            risk.
+            <TermsAndConditions />
+          </p>
+          <div v-if="!aiStore.termsAccepted" class="mt-2">
+            <button @click="acceptTermsInline" class="btn btn-sm btn-warning">
+              Accept Terms to Continue
+            </button>
+          </div>
+        </div>
+
         <!-- Error message display -->
         <div class="alert alert-danger" v-if="aiStore.error">
           <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -72,7 +90,13 @@
 
         <div class="config-row">
           <div class="config-item">
-            <select v-model="aiStore.provider" class="form-select" @change="handleProviderChange">
+            <label for="ai-provider" class="form-label">AI Provider</label>
+            <select
+              id="ai-provider"
+              v-model="aiStore.provider"
+              class="form-select"
+              @change="handleProviderChange"
+            >
               <option
                 v-for="provider in aiStore.availableProviders"
                 :key="provider.value"
@@ -82,24 +106,59 @@
               </option>
             </select>
           </div>
-          <div class="config-item">
+
+          <div class="config-item" v-if="aiStore.isCustomProvider">
+            <label for="custom-endpoint" class="form-label">API Endpoint</label>
             <input
+              id="custom-endpoint"
               type="text"
-              v-model="aiStore.version"
+              v-model="customEndpoint"
               class="form-control"
-              placeholder="version (or leave as 'latest')"
+              placeholder="https://api.example.com/v1/chat"
             />
           </div>
-          <div class="config-item api-key-input">
+
+          <div class="config-item" v-if="aiStore.isCustomProvider">
+            <label for="custom-model" class="form-label">Model Name</label>
             <input
+              id="custom-model"
+              type="text"
+              v-model="customModel"
+              class="form-control"
+              placeholder="model-name"
+            />
+          </div>
+
+          <div class="config-item" v-else>
+            <label for="ai-version" class="form-label">Model Version</label>
+            <input
+              id="ai-version"
+              type="text"
+              v-model="modelVersion"
+              class="form-control"
+              placeholder="latest"
+            />
+          </div>
+
+          <div class="config-item api-key-input">
+            <label for="api-key" class="form-label">API Key</label>
+            <input
+              id="api-key"
               type="password"
               v-model="apiKey"
               class="form-control"
               placeholder="Your API Key"
             />
           </div>
-          <div class="config-item">
-            <button @click="saveAIConfig" class="btn" :class="configButtonClass">
+
+          <div class="config-item config-button-item">
+            <label class="form-label invisible">Action</label>
+            <button
+              @click="saveAIConfig"
+              class="btn"
+              :class="configButtonClass"
+              :disabled="!apiKey"
+            >
               <span v-if="isTestingConnection">
                 <span
                   class="spinner-border spinner-border-sm me-2"
@@ -114,6 +173,26 @@
             </button>
           </div>
         </div>
+
+        <!-- Custom Headers for advanced users -->
+        <div class="config-row mt-3" v-if="aiStore.isCustomProvider">
+          <div class="config-item" style="flex: 1">
+            <label for="custom-headers" class="form-label">
+              Custom Headers (optional, JSON format)
+              <i
+                class="bi bi-info-circle"
+                title="Provide custom headers in JSON format, e.g. { 'Authorization': 'Bearer YOUR_KEY' }"
+              ></i>
+            </label>
+            <textarea
+              id="custom-headers"
+              v-model="customHeaders"
+              class="form-control"
+              placeholder='{ "Content-Type": "application/json", "Authorization": "Bearer YOUR_KEY" }'
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
       </div>
 
       <CodeEditor
@@ -123,7 +202,11 @@
       />
 
       <!-- AI Response section -->
-      <div class="ai-response-section" v-if="aiStore.lastResponse || aiStore.isLoading">
+      <div
+        id="ai-response-section"
+        class="ai-response-section"
+        v-if="aiStore.lastResponse || aiStore.isLoading"
+      >
         <h3>AI Code-Review</h3>
 
         <div v-if="aiStore.isLoading" class="loading-response">
@@ -170,17 +253,20 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
+import { useTopicStore } from '../store/topic'
+import { getSection, getCurrentCurriculum } from '../utils/curriculumLoader'
 import { useAIStore } from '../store/ai'
-import { curriculum } from '../data/curriculum'
 import CodeEditor from '../components/CodeEditor.vue'
 import BackToTop from '../components/BackToTop.vue'
 import Prism from 'prismjs'
-import { validateApiKey, testApiConnection } from '../utils/aiService'
-import { formatMarkdown } from '../utils/markdownFormatter'
+import { validateApiKey, testApiConnection, MODEL_MAPPINGS } from '../utils/aiService'
+import { formatMarkdown } from '../theme/markdownFormatter'
+import TermsAndConditions from '../components/TermsAndConditions.vue'
 
 const route = useRoute()
 const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const aiStore = useAIStore()
 const loading = ref(true)
 const isCompleted = ref(false)
@@ -189,6 +275,48 @@ const apiKey = ref('')
 const configSaveStatus = ref('')
 const isTestingConnection = ref(false)
 const savedResponse = ref(null)
+const section = ref(null)
+const currentCurriculum = ref([])
+const customModel = ref('')
+const customEndpoint = ref('')
+const customHeaders = ref('')
+
+// Load curriculum for the current topic
+const loadCurriculum = async () => {
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum:', error)
+    currentCurriculum.value = []
+  }
+}
+
+// Add a computed property and a watcher
+const modelVersion = computed({
+  get: () => {
+    return aiStore.version === 'latest' && aiStore.provider && MODEL_MAPPINGS[aiStore.provider]
+      ? MODEL_MAPPINGS[aiStore.provider]
+      : aiStore.version
+  },
+  set: (value) => {
+    aiStore.version = value
+  },
+})
+
+// Update the watcher to watch for provider changes
+watch(
+  () => aiStore.provider,
+  (newProvider) => {
+    if (newProvider && aiStore.version === 'latest') {
+      // When provider changes, update the version field to show the actual model name
+      // But only if the user hasn't manually set a version
+      const defaultModel = MODEL_MAPPINGS[newProvider]
+      if (defaultModel) {
+        aiStore.version = defaultModel
+      }
+    }
+  },
+)
 
 // Computed property for the Save Config button class
 const configButtonClass = computed(() => {
@@ -205,13 +333,18 @@ const configButtonClass = computed(() => {
 
 const sectionId = computed(() => route.params.sectionId)
 
-const section = computed(() => {
-  const sectionIndex = Number(sectionId.value) - 1
-  return curriculum[sectionIndex] || null
-})
+// Update the section computed property to use the current topic's section
+const loadSection = async () => {
+  try {
+    section.value = await getSection(parseInt(sectionId.value))
+  } catch (error) {
+    console.error('Error loading section:', error)
+    section.value = null
+  }
+}
 
 const hasNextSection = computed(() => {
-  return Number(sectionId.value) < curriculum.length
+  return Number(sectionId.value) < currentCurriculum.value.length
 })
 
 // Format AI response with markdown and code highlighting
@@ -268,8 +401,12 @@ const getSavedProviderLabel = (providerValue) => {
   return provider ? provider.label : 'Unknown AI'
 }
 
-const loadContent = () => {
+const loadContent = async () => {
   loading.value = true
+
+  await loadCurriculum()
+  await loadSection()
+
   setTimeout(() => {
     loading.value = false
     checkCompletion()
@@ -295,13 +432,15 @@ const loadSavedResponse = () => {
 const toggleCompletion = () => {
   const sectionIndex = Number(sectionId.value) - 1
   if (isCompleted.value) {
-    progressStore.completeSectionChallenge(sectionIndex)
+    progressStore.completeSectionChallenge(sectionIndex, true)
   } else {
-    progressStore.uncompleteSectionChallenge(sectionIndex)
+    progressStore.uncompleteSectionChallenge(sectionIndex, true)
   }
 }
 
 const navigateToLastLesson = () => {
+  if (!section.value) return
+
   const lastLessonIndex = section.value.lessons.length
 
   router.push({
@@ -329,13 +468,22 @@ const navigateToNextSection = () => {
 const handleProviderChange = () => {
   // Reset the save button status when provider changes
   configSaveStatus.value = ''
+
+  // Update custom model and endpoint fields if switch to custom provider
+  if (aiStore.isCustomProvider) {
+    customModel.value = aiStore.customModel || ''
+    customEndpoint.value = aiStore.customEndpoint || ''
+    customHeaders.value = aiStore.customHeaders || ''
+  }
 }
 
 // Save AI configuration settings with validation
 const saveAIConfig = async () => {
+  // Clear any previous errors
   aiStore.clearError()
   configSaveStatus.value = ''
 
+  // Check for API key
   if (!apiKey.value.trim()) {
     configSaveStatus.value = 'Invalid API Key'
     return
@@ -348,10 +496,43 @@ const saveAIConfig = async () => {
     return
   }
 
+  // For custom provider, validate the endpoint and model
+  if (aiStore.isCustomProvider) {
+    if (!customEndpoint.value || !customEndpoint.value.startsWith('http')) {
+      aiStore.setError('Please provide a valid API endpoint URL')
+      configSaveStatus.value = 'Invalid Endpoint'
+      return
+    }
+
+    if (!customModel.value) {
+      aiStore.setError('Please provide a model name')
+      configSaveStatus.value = 'Model Required'
+      return
+    }
+
+    // Save custom settings
+    aiStore.setCustomModel(customModel.value)
+    aiStore.setCustomEndpoint(customEndpoint.value)
+    aiStore.setCustomHeaders(customHeaders.value)
+  }
+
+  // Check if terms are accepted before proceeding
+  if (!aiStore.termsAccepted) {
+    aiStore.setError('You must accept the Terms and Conditions to use this feature')
+    configSaveStatus.value = 'Terms Required'
+    return
+  }
+
   // Test the connection with the API
   isTestingConnection.value = true
   try {
-    await testApiConnection(aiStore.provider, apiKey.value)
+    await testApiConnection(
+      aiStore.provider,
+      apiKey.value,
+      customModel.value,
+      customEndpoint.value,
+      customHeaders.value,
+    )
 
     // If successful, save to store
     aiStore.setApiKey(apiKey.value)
@@ -381,9 +562,25 @@ const handleCodeGraded = () => {
   })
 }
 
-onMounted(() => {
+// Accept terms inline button
+const acceptTermsInline = () => {
+  aiStore.acceptTerms()
+  // Reset button text after accepting terms
+  configSaveStatus.value = ''
+}
+
+// Listen for terms acceptance event
+const listenForTermsAcceptance = () => {
+  document.addEventListener('terms-accepted', () => {
+    if (configSaveStatus.value === 'Terms Required') {
+      configSaveStatus.value = ''
+    }
+  })
+}
+
+onMounted(async () => {
   // Load challenge content
-  loadContent()
+  await loadContent()
 
   // Load AI settings if not already loaded
   if (!aiStore.isLoaded) {
@@ -392,11 +589,17 @@ onMounted(() => {
 
   // Set the apiKey from store
   apiKey.value = aiStore.apiKey
+  customModel.value = aiStore.customModel || ''
+  customEndpoint.value = aiStore.customEndpoint || ''
+  customHeaders.value = aiStore.customHeaders || ''
 
   // Apply Prism highlighting
   nextTick(() => {
     Prism.highlightAll()
   })
+
+  // Setup terms acceptance listener
+  listenForTermsAcceptance()
 })
 
 // Watch for changes in AI settings
@@ -407,7 +610,24 @@ watch(
   },
 )
 
-watch(sectionId, () => {
+// Watch for changes in custom model
+watch(
+  () => aiStore.customModel,
+  (newValue) => {
+    customModel.value = newValue
+  },
+)
+
+// Watch for provider changes
+watch(
+  () => aiStore.provider,
+  () => {
+    handleProviderChange()
+  },
+)
+
+// Watch for changes in route or topic
+watch([sectionId, () => topicStore.currentTopic], () => {
   loadContent()
 })
 
@@ -418,6 +638,17 @@ watch(
     nextTick(() => {
       Prism.highlightAll()
     })
+  },
+)
+
+// Watch for changes in terms acceptance state
+watch(
+  () => aiStore.termsAccepted,
+  (newValue) => {
+    // If terms were just accepted, reset the button text if it's showing "Terms Required"
+    if (newValue && configSaveStatus.value === 'Terms Required') {
+      configSaveStatus.value = ''
+    }
   },
 )
 </script>
@@ -484,7 +715,6 @@ watch(
   margin-bottom: 8px;
 }
 
-/* Starter code with copy button and scrolling */
 .starter-code {
   background-color: var(--bg-code-example);
   padding: 15px;
@@ -505,68 +735,6 @@ watch(
   overflow: hidden;
 }
 
-.scrollable-code {
-  margin: 0;
-  padding: 15px;
-  background-color: #000000;
-  border-radius: 4px;
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 70vh; /* Maximum height of 70% of viewport height */
-  transition: all var(--transition-speed) ease;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-/* Custom scrollbar styles */
-.scrollable-code::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollable-code::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.code-copy-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.5);
-  color: var(--text-light);
-  border: none;
-  border-radius: 4px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0.6;
-  z-index: 5;
-}
-
-.code-wrapper:hover .code-copy-btn {
-  opacity: 1;
-}
-
-.code-copy-btn:hover {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-/* AI Configuration styling */
 .ai-config-section {
   margin: 30px 0;
   padding: 20px;
@@ -583,25 +751,94 @@ watch(
   color: var(--text-color);
 }
 
+.ai-config-warning {
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background-color: rgba(var(--warning-color-rgb, 255, 193, 7), 0.1);
+  border-left: 4px solid var(--warning-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
 .config-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
+  gap: 15px;
+  align-items: flex-start;
 }
 
 .config-item {
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
 }
 
 .api-key-input {
-  flex: 2;
+  flex: 1;
 }
 
-/* AI Response section */
+.config-button-item {
+  align-self: flex-end;
+  flex: 0.75;
+}
+
+.form-label {
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Dark mode fixes for form controls */
+:deep(.form-control),
+:deep(.form-select) {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+:deep(.form-select) {
+  appearance: auto;
+  background-image: none;
+}
+
+:deep(.form-select) option {
+  background-color: var(--bg-card);
+  color: var(--text-color);
+}
+
+:deep(.form-control:focus),
+:deep(.form-select:focus) {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
+}
+
+:deep(.form-control::placeholder),
+:deep(.form-select::placeholder) {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .config-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .config-item {
+    width: 100%;
+    flex: unset;
+  }
+
+  .config-button-item {
+    align-self: stretch;
+  }
+}
+
 .ai-response-section {
-  margin-top: 30px;
+  margin: 30px 0 40px;
   padding: 20px;
   background-color: var(--bg-card);
   border-radius: 8px;
@@ -634,7 +871,6 @@ watch(
   scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
 }
 
-/* Custom scrollbar for response content */
 .response-content::-webkit-scrollbar {
   width: 8px;
 }
@@ -653,7 +889,6 @@ watch(
   background-color: rgba(128, 128, 128, 0.6);
 }
 
-/* Saved response info */
 .saved-response-info {
   margin-top: 15px;
   padding-top: 10px;
@@ -661,127 +896,6 @@ watch(
   text-align: right;
 }
 
-/* Markdown content styling */
-.markdown-content {
-  color: var(--text-color);
-}
-
-.markdown-content :deep(.md-h1),
-.markdown-content :deep(.md-h2),
-.markdown-content :deep(.md-h3),
-.markdown-content :deep(.md-h4),
-.markdown-content :deep(.md-h5),
-.markdown-content :deep(.md-h6) {
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--text-color);
-}
-
-.markdown-content :deep(.md-h1) {
-  font-size: 1.8rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.markdown-content :deep(.md-h2) {
-  font-size: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.3rem;
-}
-
-.markdown-content :deep(.md-h3) {
-  font-size: 1.3rem;
-}
-
-.markdown-content :deep(.md-h4) {
-  font-size: 1.1rem;
-}
-
-.markdown-content :deep(.md-p) {
-  margin-bottom: 1rem;
-  line-height: 1.6;
-}
-
-.markdown-content :deep(.md-ul),
-.markdown-content :deep(.md-ol) {
-  margin-bottom: 1rem;
-  padding-left: 2rem;
-}
-
-.markdown-content :deep(.md-li) {
-  margin-bottom: 0.5rem;
-}
-
-.markdown-content :deep(.md-blockquote) {
-  border-left: 4px solid var(--primary-color);
-  padding-left: 1rem;
-  margin-left: 0;
-  margin-right: 0;
-  margin-bottom: 1rem;
-  font-style: italic;
-  color: var(--text-muted);
-}
-
-.markdown-content :deep(.md-hr) {
-  margin: 2rem 0;
-  border: 0;
-  border-top: 1px solid var(--border-color);
-}
-
-.markdown-content :deep(.md-inline-code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  background-color: var(--bg-code);
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.9em;
-  border: 1px solid rgba(var(--primary-color-rgb, 79, 70, 229), 0.2);
-}
-
-.markdown-content :deep(.md-link) {
-  color: var(--primary-color);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--primary-color);
-}
-
-.markdown-content :deep(.md-link:hover) {
-  border-bottom: 1px solid var(--primary-color);
-}
-
-.markdown-content :deep(.md-strong) {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.markdown-content :deep(.md-em) {
-  font-style: italic;
-}
-
-/* Apply syntax highlighting to AI response */
-.markdown-content :deep(pre) {
-  background-color: #0e0023;
-  padding: 15px;
-  border-radius: 5px;
-  overflow-x: auto;
-  margin: 15px 0;
-  position: relative;
-}
-
-.markdown-content :deep(code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  font-size: 0.9rem;
-}
-
-.navigation-buttons {
-  margin-top: 30px;
-  margin-bottom: 30px;
-  display: flex;
-  justify-content: space-between;
-}
-
-/* Make sure form check elements are properly styled for dark mode */
 .form-check-input {
   background-color: var(--bg-content);
   border-color: var(--border-color);
@@ -791,7 +905,6 @@ watch(
   color: var(--text-color);
 }
 
-/* Responsiveness */
 @media (max-width: 768px) {
   .challenge-header {
     flex-direction: column;
@@ -806,18 +919,8 @@ watch(
     margin-bottom: 10px;
   }
 
-  .config-row {
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .config-item {
-    width: 100%;
-    flex: unset;
-  }
-
   .navigation-buttons {
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
   }
 
@@ -830,7 +933,17 @@ watch(
   }
 }
 
-/* Proper dark mode support for alerts */
+/* some markdown styles for AI Code-Review section */
+
+.markdown-content :deep(.md-inline-code) {
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  background-color: var(--bg-code);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+  border: 1px solid rgba(var(--primary-color-rgb, 79, 70, 229), 0.2);
+}
+
 html[data-theme='dark'] .alert-danger,
 body.dark-mode .alert-danger {
   background-color: rgba(220, 53, 69, 0.2);
@@ -838,20 +951,24 @@ body.dark-mode .alert-danger {
   border-color: rgba(220, 53, 69, 0.3);
 }
 
-/* Fix for Prism code highlighting in dark mode */
-html[data-theme='dark'] .scrollable-code,
-body.dark-mode .scrollable-code {
-  background-color: #1e1e3f;
+html[data-theme='light'] .markdown-content :deep(pre),
+body.dark-mode .markdown-content :deep(pre) {
+  background-color: #1f0527;
 }
 
 html[data-theme='dark'] .markdown-content :deep(pre),
 body.dark-mode .markdown-content :deep(pre) {
-  background-color: #1e1e3f;
+  background-color: #1b0329;
 }
 
 html[data-theme='dark'] .markdown-content :deep(code),
 body.dark-mode .markdown-content :deep(code) {
   color: #e4e4e4;
   text-shadow: none;
+}
+
+html[data-theme='dark'] .scrollable-code,
+body.dark-mode .scrollable-code {
+  background-color: #0f0f28;
 }
 </style>

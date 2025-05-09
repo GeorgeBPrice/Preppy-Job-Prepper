@@ -18,14 +18,19 @@
   --bg-sidebar: #fcfbff;
   --bg-header: #f8f9fa;
   --bg-card: #fbfbff;
-  --bg-code: #efefef;
-  --bg-exercise: #e9ecef;
-  --bg-code-example: #e8e9e9;
+  --bg-card-completed: #eefcf2;
+  --bg-code: #ece9ef;
+  --bg-exercise: #ece9ef;
+  --bg-code-example: #ece9ef;
+  --bs-body-bg: #ffffff;
+  --bg-congrats: rgba(255, 255, 255, 0.9);
 
   --border-color: #dee2e6;
   --hover-color: rgba(0, 0, 0, 0.05);
-  --sidebar-active: #d1ecf1;
-  --sidebar-active-border: #17a2b8;
+  --lida-hover-color: #a572fe;
+  --lida-icon-color: #783bec;
+  --sidebar-active: #e4dcfe;
+  --sidebar-active-border: #5517b8;
 
   /* Shadow effects */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -35,6 +40,7 @@
   /* Gradients */
   --header-gradient: linear-gradient(to right, #f9f6ff, #ebe8fd);
   --sidebar-gradient: linear-gradient(to bottom, #f7f5fa, #ebe8fd);
+  --bg-content-area: linear-gradient(45deg, #fff 0%, #f9f5ff 100%);
   --section-number-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
 
   /* Transitions */
@@ -60,12 +66,16 @@
   --bg-sidebar: #1f2937;
   --bg-header: #1f2937;
   --bg-card: #1f2937;
+  --bg-card-completed: #142c2a;
   --bg-code: #000000;
   --bg-exercise: #2d3748;
   --bg-code-example: #000000;
+  --bs-body-bg: #171f2d;
+  --bg-congrats: rgba(23, 31, 45, 0.96);
 
   --border-color: #374151;
-  --hover-color: rgba(255, 255, 255, 0.05);
+  --lida-hover-color: #7120e1;
+  --lida-icon-color: #d0b5ff;
   --sidebar-active: #37415f;
   --sidebar-active-border: #6366f1;
 
@@ -77,6 +87,7 @@
   /* Gradients */
   --header-gradient: linear-gradient(to right, #1f2937, #111827);
   --sidebar-gradient: linear-gradient(to bottom, #1f2937, #111827);
+  --bg-content-area: linear-gradient(45deg, #080f1e 0%, #151e33 100%);
   --section-number-gradient: linear-gradient(135deg, #6366f1, #9333ea);
 }
 
@@ -107,10 +118,14 @@ body {
 
 /* Content area styling - base styles */
 .content-area {
-  background-color: var(--bg-content);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-speed) ease;
-  margin-top: 0; /* As per your update */
+  margin-top: 0;
+  background: var(--bg-content-area);
+}
+
+.content-area.dark-mode {
+  background-image: --bg-content-area;
 }
 
 /* Stronger dark mode selectors for content area */
@@ -157,7 +172,7 @@ html[data-theme='dark'] .code-example,
 body.dark-mode .code-example,
 .dark-mode .code-example,
 [data-theme='dark'] .code-example {
-  background-color: #181d29 !important;
+  background-color: #393943 !important;
 }
 
 html[data-theme='dark'] .code-example pre,
@@ -173,7 +188,7 @@ body.dark-mode .code-example code,
 
 /* Progress bar styling */
 .progress {
-  height: 25px; /* As per your update */
+  height: 25px;
   border-radius: 4px;
   background-color: var(--bg-card);
   overflow: hidden;
@@ -239,7 +254,20 @@ h3.gradient-text {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 4px 12px rgba(139, 70, 229, 0.4);
+}
+
+.btn-outline-primary {
+  background: var(--secondary-gradient);
+  border-color: var(--secondary-color);
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+.btn-outline-primary:hover {
+  background: var(--primary-gradient);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 70, 229, 0.4);
 }
 
 /* Dark mode specific overrides */

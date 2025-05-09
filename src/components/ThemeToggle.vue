@@ -11,7 +11,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useThemeStore } from '../store/theme'
+import { useThemeStore } from '../theme/theme'
 
 const themeStore = useThemeStore()
 
@@ -24,35 +24,43 @@ const toggleTheme = () => {
 
 <style scoped>
 .theme-toggle {
+  margin-left: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
 }
 
 .btn-icon {
   background: transparent;
   border: none;
   cursor: pointer;
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  color: var(--text-color);
+  transition: all 0.6s ease;
+  color: var(--lida-icon-color);
 }
 
 .dark-mode .btn-icon {
-  color: var(--text-color-dark);
+  color: var(--lida-icon-color);
 }
 
 .btn-icon:hover {
-  background-color: var(--hover-color);
+  transform: translateY(-2px);
 }
 
 .dark-mode .btn-icon:hover {
-  background-color: var(--hover-color-dark);
+  background-color: var(--lida-hover-color);
+}
+
+.btn-icon:hover {
+  background-color: var(--lida-hover-color);
 }
 
 .btn-icon i {

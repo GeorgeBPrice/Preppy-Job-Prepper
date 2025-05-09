@@ -1,10 +1,10 @@
 <template>
   <div class="interview-view">
     <div class="container">
-      <h1 class="view-title">Prepper Interview Questions</h1>
+      <h1 class="view-title">{{ topicStore.currentTopicName }} Prepper Questions</h1>
       <p class="view-description">
-        Review the most common interview questions from each curriculum section. Expand questions to
-        see concise answers that will help you prepare for technical interviews.
+        Review the most common interview questions from each lesson section. Expand questions to see
+        concise answers that will help you prepare for technical interviews.
       </p>
 
       <interview-questions
@@ -21,9 +21,11 @@
 import { onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import InterviewQuestions from '../components/InterviewQuestions.vue'
+import { useTopicStore } from '../store/topic'
 
 const router = useRouter()
 const route = useRoute()
+const topicStore = useTopicStore()
 
 // Handle section changes from the component
 const onSectionChange = (sectionId) => {
@@ -73,30 +75,11 @@ onMounted(() => {
 
 <style scoped>
 .interview-view {
-  padding: 30px 0;
-}
-
-.view-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.view-description {
-  font-size: 1.1rem;
-  color: #6c757d;
-  max-width: 800px;
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-  .interview-view {
-    padding: 20px 0;
-  }
-
-  .view-title {
-    font-size: 2rem;
-  }
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 400px;
+  position: relative;
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
 }
 </style>

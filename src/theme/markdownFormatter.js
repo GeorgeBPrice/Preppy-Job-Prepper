@@ -16,6 +16,12 @@ export const formatMarkdown = (markdown) => {
   // Process code blocks first (to avoid processing markdown inside code blocks)
   formatted = formatCodeBlocks(formatted)
 
+  // Also process double backtick code blocks
+  formatted = formatSingleTickCodeBlocks(formatted)
+
+  // Simple graphics
+  formatted = formatGraphics(formatted)
+
   // Format headers
   formatted = formatHeaders(formatted)
 
@@ -44,10 +50,84 @@ export const formatMarkdown = (markdown) => {
 }
 
 /**
+ * Process custom graphic tags
+ */
+function formatGraphics(text) {
+  return text.replace(
+    /<graphic type="([^"]+)" title="([^"]+)">([\s\S]*?)<\/graphic>/g,
+    (match, type, title, content) => {
+      const items =
+        content.match(/<item label="([^"]+)" color="([^"]+)" (?:size|width)="([^"]+)"\/>/g) || []
+      const graphicItems = items.map((item) => {
+        const [, label, color, dimension] = item.match(
+          /label="([^"]+)" color="([^"]+)" (?:size|width)="([^"]+)"/,
+        )
+        return { label, color, dimension }
+      })
+
+      if (type === 'circle-diagram') {
+        return `
+          <div class="graphic-circle-diagram">
+            <h5>${title}</h5>
+            <div class="circles">
+              ${graphicItems
+                .map(
+                  (item) => `
+                <div class="circle" style="background: ${item.color}; width: ${item.dimension}; height: ${item.dimension};">
+                  <span>${item.label}</span>
+                </div>
+              `,
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+      } else if (type === 'bar-diagram') {
+        return `
+          <div class="graphic-bar-diagram">
+            <h5>${title}</h5>
+            <div class="bars">
+              ${graphicItems
+                .map(
+                  (item) => `
+                <div class="bar" style="background: ${item.color}; width: ${item.dimension};">
+                  <span>${item.label}</span>
+                </div>
+              `,
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+      } else if (type === 'nested-circles') {
+        return `
+          <div class="graphic-nested-circles">
+            <h5>${title}</h5>
+            <div class="nested-circles-container">
+              ${graphicItems
+                .map(
+                  (item, i) => `
+                <div class="nested-circle" style="background: ${item.color}; width: ${item.dimension}; height: ${item.dimension}; z-index: ${graphicItems.length - i};">
+                  <span>${item.label}</span>
+                </div>
+              `,
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+      }
+      return `<p>Unsupported graphic type: ${type}</p>`
+    },
+  )
+}
+
+/**
  * Format code blocks with syntax highlighting
  */
 const formatCodeBlocks = (text) => {
-  return text.replace(/```([\w-]*)\n([\s\S]+?)\n```/g, (match, language, code) => {
+  // Improved regex to handle various formats of code blocks with more flexibility
+  return text.replace(/```([\w-]*)\s*([\s\S]+?)\s*```/g, (match, language, code) => {
     language = language.trim().toLowerCase()
 
     // Map some common language aliases
@@ -79,6 +159,27 @@ const formatCodeBlocks = (text) => {
     }
 
     // Fallback to plain code block
+    return `<pre class="scrollable-code"><code>${escapeHtml(code.trim())}</code></pre>`
+  })
+}
+
+// Also, let's add a second pass to catch any code blocks that are formatted with `` (double backticks)
+const formatSingleTickCodeBlocks = (text) => {
+  return text.replace(/``\s*([\w-]*)\s*\n?([\s\S]+?)\s*``/g, (match, language, code) => {
+    language = language.trim().toLowerCase()
+
+    // Use javascript as default language if not specified
+    if (!language) language = 'javascript'
+
+    try {
+      if (Prism.languages[language]) {
+        const highlighted = Prism.highlight(code.trim(), Prism.languages[language], language)
+        return `<pre class="language-${language} scrollable-code"><code class="language-${language}">${highlighted}</code></pre>`
+      }
+    } catch (e) {
+      console.warn('Error highlighting code with double backticks:', e)
+    }
+
     return `<pre class="scrollable-code"><code>${escapeHtml(code.trim())}</code></pre>`
   })
 }

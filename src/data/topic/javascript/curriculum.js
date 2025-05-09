@@ -1,4 +1,4 @@
-// curriculum.js - Main file that imports all curriculum sections
+// curriculum.js - Main file that imports all JavaScript curriculum sections
 
 // Import all curriculum sections
 import section1 from './sections/curriculum-section1.js'
@@ -11,6 +11,9 @@ import section7 from './sections/curriculum-section7.js'
 import section8 from './sections/curriculum-section8.js'
 import section9 from './sections/curriculum-section9.js'
 import section10 from './sections/curriculum-section10.js'
+
+// Import shortlist curriculum
+import section from './sections/curriculum-section-shortlist.js'
 
 // Combine all sections into a single curriculum array
 export const curriculum = [
@@ -25,6 +28,9 @@ export const curriculum = [
   section9,
   section10,
 ]
+
+// Export shortlist curriculum
+export const shortlistCurriculum = [section]
 
 // Export individual sections for direct access if needed
 export {
@@ -46,6 +52,16 @@ export function getSection(sectionIndex) {
     throw new Error(`Section ${sectionIndex} does not exist. Valid range: 1-${curriculum.length}`)
   }
   return curriculum[sectionIndex - 1]
+}
+
+// Helper function to get a specific shortlist section by index (1-based)
+export function getShortlistSection(sectionIndex) {
+  if (sectionIndex < 1 || sectionIndex > shortlistCurriculum.length) {
+    throw new Error(
+      `Section ${sectionIndex} does not exist. Valid range: 1-${shortlistCurriculum.length}`,
+    )
+  }
+  return shortlistCurriculum[sectionIndex - 1]
 }
 
 // Helper function to get a specific lesson from a section

@@ -1,191 +1,384 @@
 import { defineStore } from 'pinia'
-import { saveToStorage, loadFromStorage } from '../utils/storage'
-import { curriculum } from '../data/curriculum'
+import {
+  saveToStorage,
+  loadFromStorage,
+  saveTopicProgress,
+  // loadTopicProgress,
+} from '../utils/storage'
+import { useTopicStore } from './topic'
+import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 export const useProgressStore = defineStore('progress', {
   state: () => ({
-    completedLessons: {}, // Format: {sectionIndex: {lessonIndex: true}}
-    completedChallenges: {}, // Format: {sectionIndex: true}
-    lessonCode: {}, // Format: {sectionIndex: {lessonIndex: 'code'}}
-    challengeCode: {}, // Format: {sectionIndex: 'code'}
-    currentLesson: {
-      section: 0,
-      lesson: 0,
-    },
+    // Mapping of topic -> section -> lesson -> completion status
+    topicProgress: {},
     isLoaded: false,
+    _forceUpdate: 0,
   }),
 
   getters: {
-    overallProgress: (state) => {
-      let totalItems = 0
-      let completedItems = 0
+    // Get current topic's progress data
+    currentTopicProgress(state) {
+      const topicStore = useTopicStore()
+      const topicKey = topicStore.currentTopic
 
-      curriculum.forEach((section, sectionIndex) => {
-        // Count lessons
-        section.lessons.forEach((_, lessonIndex) => {
-          totalItems++
-          if (state.completedLessons[sectionIndex]?.[lessonIndex]) {
-            completedItems++
+      if (!state.topicProgress[topicKey]) {
+        state.topicProgress[topicKey] = {
+          completedLessons: {},
+          completedChallenges: {},
+          lessonCode: {},
+          challengeCode: {},
+          currentLesson: { section: 0, lesson: 0 },
+        }
+      }
+
+      return state.topicProgress[topicKey]
+    },
+
+    // Alias getters for backward compatibility and convenience
+    completedLessons() {
+      return this.currentTopicProgress.completedLessons || {}
+    },
+
+    completedChallenges() {
+      return this.currentTopicProgress.completedChallenges || {}
+    },
+
+    lessonCode() {
+      return this.currentTopicProgress.lessonCode || {}
+    },
+
+    challengeCode() {
+      return this.currentTopicProgress.challengeCode || {}
+    },
+
+    currentLesson() {
+      return this.currentTopicProgress.currentLesson || { section: 0, lesson: 0 }
+    },
+
+    // Calculate overall progress for current topic
+    async overallProgress() {
+      try {
+        // Including _forceUpdate as a dependency to trigger reactivity
+        // This line doesn't do anything functionally but ensures the getter re-runs when _forceUpdate changes
+        // eslint-disable-next-line no-unused-vars
+        const _ = this._forceUpdate
+
+        let totalItems = 0
+        let completedItems = 0
+
+        const curriculum = await getCurrentCurriculum()
+        if (!curriculum || curriculum.length === 0) {
+          return 0
+        }
+
+        curriculum.forEach((section, sectionIndex) => {
+          if (section.lessons && section.lessons.length > 0) {
+            section.lessons.forEach((_, lessonIndex) => {
+              totalItems++
+              if (this.completedLessons[sectionIndex]?.[lessonIndex]) {
+                completedItems++
+              }
+            })
+          }
+
+          // Add challenge
+          if (section.challenge) {
+            totalItems++
+            if (this.completedChallenges[sectionIndex]) {
+              completedItems++
+            }
           }
         })
 
-        // Count challenge
-        totalItems++
-        if (state.completedChallenges[sectionIndex]) {
-          completedItems++
-        }
-      })
-
-      return totalItems > 0 ? completedItems / totalItems : 0
+        return totalItems > 0 ? completedItems / totalItems : 0
+      } catch (error) {
+        console.error('Error calculating progress:', error)
+        return 0
+      }
     },
 
-    hasAnyProgress: (state) => {
-      // Check if the user has made any progress in the app
+    hasAnyProgress() {
+      const progress = this.currentTopicProgress
+
       return (
-        state.currentLesson.section > 0 ||
-        Object.keys(state.completedLessons).length > 0 ||
-        Object.keys(state.completedChallenges).length > 0
+        (progress.currentLesson && progress.currentLesson.section > 0) ||
+        Object.keys(progress.completedLessons || {}).length > 0 ||
+        Object.keys(progress.completedChallenges || {}).length > 0
       )
+    },
+
+    // Find the next uncompleted item (not checked by user)
+    async nextUncompletedItem() {
+      try {
+        const curriculum = await getCurrentCurriculum()
+        if (!curriculum || curriculum.length === 0) {
+          return null
+        }
+
+        for (let sectionIndex = 0; sectionIndex < curriculum.length; sectionIndex++) {
+          const section = curriculum[sectionIndex]
+
+          if (section.lessons && section.lessons.length > 0) {
+            for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
+              if (!this.isLessonCompleted(sectionIndex, lessonIndex)) {
+                return { type: 'lesson', section: sectionIndex, lesson: lessonIndex }
+              }
+            }
+          }
+
+          if (section.challenge && !this.isChallengeCompleted(sectionIndex)) {
+            return { type: 'challenge', section: sectionIndex }
+          }
+        }
+        return null
+      } catch (error) {
+        console.error('Error finding next uncompleted item:', error)
+        return null
+      }
     },
   },
 
   actions: {
     loadProgress() {
-      const data = loadFromStorage()
+      const data = loadFromStorage('js_job_review_progress')
       if (data) {
-        this.completedLessons = data.completedLessons || {}
-        this.completedChallenges = data.completedChallenges || {}
-        this.lessonCode = data.lessonCode || {}
-        this.challengeCode = data.challengeCode || {}
-        this.currentLesson = data.currentLesson || { section: 0, lesson: 0 }
+        // Handle legacy data format (pre-topic separation)
+        if (data.completedLessons) {
+          const topicStore = useTopicStore()
+          const defaultTopic = topicStore.currentTopic
+
+          // Migrate old data to new format
+          this.topicProgress = {
+            [defaultTopic]: {
+              completedLessons: data.completedLessons || {},
+              completedChallenges: data.completedChallenges || {},
+              lessonCode: data.lessonCode || {},
+              challengeCode: data.challengeCode || {},
+              currentLesson: data.currentLesson || { section: 0, lesson: 0 },
+            },
+          }
+        } else if (data.topicProgress) {
+          // Use new data format
+          this.topicProgress = data.topicProgress
+        }
       }
 
-      // If there's no current lesson set but the user has completed lessons,
-      // set the current lesson to the first completed one
-      if (this.currentLesson.section === 0 && Object.keys(this.completedLessons).length > 0) {
-        const firstSectionIndex = parseInt(Object.keys(this.completedLessons)[0])
-        const firstLessonIndex = parseInt(Object.keys(this.completedLessons[firstSectionIndex])[0])
-
-        this.currentLesson = {
-          section: firstSectionIndex,
-          lesson: firstLessonIndex,
+      // Initialize current topic if not present
+      const topicStore = useTopicStore()
+      if (!this.topicProgress[topicStore.currentTopic]) {
+        this.topicProgress[topicStore.currentTopic] = {
+          completedLessons: {},
+          completedChallenges: {},
+          lessonCode: {},
+          challengeCode: {},
+          currentLesson: { section: 0, lesson: 0 },
         }
       }
 
       this.isLoaded = true
+      this.saveProgress()
     },
 
     saveProgress() {
       const data = {
-        completedLessons: this.completedLessons,
-        completedChallenges: this.completedChallenges,
-        lessonCode: this.lessonCode,
-        challengeCode: this.challengeCode,
-        currentLesson: this.currentLesson,
+        topicProgress: this.topicProgress,
       }
 
-      saveToStorage(data)
+      // Save all topic progress
+      saveToStorage(data, 'js_job_review_progress')
+
+      // Also save current topic separately for backup
+      const topicStore = useTopicStore()
+      saveTopicProgress(topicStore.currentTopic, this.currentTopicProgress)
     },
 
-    completeLesson(sectionIndex, lessonIndex) {
-      if (!this.completedLessons[sectionIndex]) {
-        this.completedLessons[sectionIndex] = {}
+    completeLesson(sectionIndex, lessonIndex, updateProgress = false) {
+      const progress = this.currentTopicProgress
+      if (!progress.completedLessons) {
+        progress.completedLessons = {}
       }
 
-      this.completedLessons[sectionIndex][lessonIndex] = true
+      if (!progress.completedLessons[sectionIndex]) {
+        progress.completedLessons[sectionIndex] = {}
+      }
 
-      // Update current lesson
+      progress.completedLessons[sectionIndex][lessonIndex] = true
       this.updateCurrentLesson(sectionIndex, lessonIndex)
-
+      this._forceUpdate++ // Force reactivity update
       this.saveProgress()
+
+      // For immediate progress bar update
+      if (updateProgress) {
+        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
+      }
     },
 
-    uncompleteLesson(sectionIndex, lessonIndex) {
-      if (this.completedLessons[sectionIndex]) {
-        delete this.completedLessons[sectionIndex][lessonIndex]
+    // In uncompleteLesson method:
+    uncompleteLesson(sectionIndex, lessonIndex, updateProgress = false) {
+      const progress = this.currentTopicProgress
+      if (progress.completedLessons && progress.completedLessons[sectionIndex]) {
+        delete progress.completedLessons[sectionIndex][lessonIndex]
+
+        // If there are no more lessons in this section, remove the section entry
+        if (Object.keys(progress.completedLessons[sectionIndex]).length === 0) {
+          delete progress.completedLessons[sectionIndex]
+        }
+      }
+      this._forceUpdate++ // Force reactivity update
+      this.saveProgress()
+
+      // For immediate progress bar update
+      if (updateProgress) {
+        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
+      }
+    },
+
+    // In completeSectionChallenge method:
+    completeSectionChallenge(sectionIndex, updateProgress = false) {
+      const progress = this.currentTopicProgress
+      if (!progress.completedChallenges) {
+        progress.completedChallenges = {}
       }
 
-      this.saveProgress()
-    },
+      progress.completedChallenges[sectionIndex] = true
+      this._forceUpdate++ // Force reactivity update
 
-    completeSectionChallenge(sectionIndex) {
-      this.completedChallenges[sectionIndex] = true
-
-      // Move to next section
-      if (sectionIndex < curriculum.length - 1) {
-        this.updateCurrentLesson(sectionIndex + 1, 0)
+      // Async function to get curriculum length
+      const updateNextSection = async () => {
+        try {
+          const curriculum = await getCurrentCurriculum()
+          if (curriculum && sectionIndex < curriculum.length - 1) {
+            this.updateCurrentLesson(sectionIndex + 1, 0)
+          }
+        } catch (error) {
+          console.error('Error updating next section:', error)
+        }
       }
 
+      updateNextSection()
       this.saveProgress()
+
+      // For immediate progress bar update
+      if (updateProgress) {
+        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
+      }
     },
 
-    uncompleteSectionChallenge(sectionIndex) {
-      delete this.completedChallenges[sectionIndex]
+    // In uncompleteSectionChallenge method:
+    uncompleteSectionChallenge(sectionIndex, updateProgress = false) {
+      const progress = this.currentTopicProgress
+      if (progress.completedChallenges) {
+        delete progress.completedChallenges[sectionIndex]
+      }
+      this._forceUpdate++ // Force reactivity update
       this.saveProgress()
+
+      // For immediate progress bar update
+      if (updateProgress) {
+        this.$patch({ _forceUpdate: this._forceUpdate + 1 })
+      }
     },
 
     saveLessonCode(sectionIndex, lessonIndex, code) {
-      if (!this.lessonCode[sectionIndex]) {
-        this.lessonCode[sectionIndex] = {}
+      const progress = this.currentTopicProgress
+      if (!progress.lessonCode) {
+        progress.lessonCode = {}
       }
 
-      this.lessonCode[sectionIndex][lessonIndex] = code
+      if (!progress.lessonCode[sectionIndex]) {
+        progress.lessonCode[sectionIndex] = {}
+      }
+
+      progress.lessonCode[sectionIndex][lessonIndex] = code
       this.saveProgress()
     },
 
     getLessonCode(sectionIndex, lessonIndex) {
-      return this.lessonCode[sectionIndex]?.[lessonIndex] || ''
+      const progress = this.currentTopicProgress
+      return progress.lessonCode?.[sectionIndex]?.[lessonIndex] || ''
     },
 
     saveSectionChallengeCode(sectionIndex, code) {
-      this.challengeCode[sectionIndex] = code
+      const progress = this.currentTopicProgress
+      if (!progress.challengeCode) {
+        progress.challengeCode = {}
+      }
+
+      progress.challengeCode[sectionIndex] = code
       this.saveProgress()
     },
 
     getSectionChallengeCode(sectionIndex) {
-      return this.challengeCode[sectionIndex] || ''
+      const progress = this.currentTopicProgress
+      return progress.challengeCode?.[sectionIndex] || ''
     },
 
     isLessonCompleted(sectionIndex, lessonIndex) {
-      return !!this.completedLessons[sectionIndex]?.[lessonIndex]
+      const progress = this.currentTopicProgress
+      return !!progress.completedLessons?.[sectionIndex]?.[lessonIndex]
     },
 
     isChallengeCompleted(sectionIndex) {
-      return !!this.completedChallenges[sectionIndex]
+      const progress = this.currentTopicProgress
+      return !!progress.completedChallenges?.[sectionIndex]
     },
 
-    isSectionCompleted(sectionIndex) {
-      const section = curriculum[sectionIndex]
-      if (!section) return false
+    async isSectionCompleted(sectionIndex) {
+      try {
+        const curriculum = await getCurrentCurriculum()
+        if (!curriculum || curriculum.length <= sectionIndex) return false
 
-      // Check if all lessons are completed
-      for (let i = 0; i < section.lessons.length; i++) {
-        if (!this.isLessonCompleted(sectionIndex, i)) {
+        const section = curriculum[sectionIndex]
+        if (!section) return false
+
+        if (!section.lessons || section.lessons.length === 0) return false
+
+        // Check if all lessons are completed
+        for (let i = 0; i < section.lessons.length; i++) {
+          if (!this.isLessonCompleted(sectionIndex, i)) {
+            return false
+          }
+        }
+
+        // Check if challenge is completed (if there is one)
+        if (section.challenge && !this.isChallengeCompleted(sectionIndex)) {
           return false
         }
-      }
 
-      // Check if the challenge is completed
-      if (!this.isChallengeCompleted(sectionIndex)) {
+        return true
+      } catch (error) {
+        console.error('Error checking if section is completed:', error)
         return false
       }
-
-      return true
     },
 
     updateCurrentLesson(sectionIndex, lessonIndex) {
-      this.currentLesson = {
+      const progress = this.currentTopicProgress
+      progress.currentLesson = {
         section: sectionIndex,
         lesson: lessonIndex,
       }
     },
 
     resetProgress() {
-      this.completedLessons = {}
-      this.completedChallenges = {}
-      this.lessonCode = {}
-      this.challengeCode = {}
-      this.currentLesson = { section: 0, lesson: 0 }
+      const topicStore = useTopicStore()
+      const currentTopic = topicStore.currentTopic
+
+      this.topicProgress[currentTopic] = {
+        completedLessons: {},
+        completedChallenges: {},
+        lessonCode: {},
+        challengeCode: {},
+        currentLesson: { section: 0, lesson: 0 },
+      }
+
+      this.saveProgress()
+    },
+
+    // Reset progress for all topics
+    resetAllProgress() {
+      this.topicProgress = {}
       this.saveProgress()
     },
   },

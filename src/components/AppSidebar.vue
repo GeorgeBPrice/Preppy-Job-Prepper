@@ -3,17 +3,15 @@
     <!-- Top Navigation Row -->
     <div class="sidebar-top-nav" :class="{ stacked: isCollapsed }">
       <!-- Home Button -->
-      <div class="sidebar-nav-button">
-        <router-link
-          to="/"
-          class="home-nav-link"
-          :class="{ active: isHomeActive() }"
-          title="Home"
-          @click="handleHomeClick"
-        >
-          <i class="bi bi-house-door-fill"></i>
-        </router-link>
-      </div>
+      <router-link
+        to="/"
+        class="home-nav-link sidebar-nav-button sidebar-toggle d-none d-md-flex"
+        :class="{ active: isHomeActive() }"
+        title="Home"
+        @click="closeMobileMenuOnNavigation"
+      >
+        <i class="bi bi-house-door-fill"></i>
+      </router-link>
 
       <!-- Collapse/Expand Button - Hidden on mobile -->
       <div class="sidebar-nav-button sidebar-toggle d-none d-md-flex" @click="$emit('toggle')">
@@ -21,24 +19,47 @@
       </div>
     </div>
 
+    <!-- Curriculum Menu -->
     <div class="sidebar-content" ref="sidebarContent">
-      <!-- Interview Questions - Highlighted with a distinct style -->
+      <!-- Prepper section -->
+      <div :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }">
+        <label>{{ isCollapsed ? 'Recap' : 'Quick Recap' }}</label>
+      </div>
       <div class="section-item interview-questions-item">
+        <!-- Shortlist Prepper -->
+        <router-link
+          to="/minicourse-recapper"
+          class="interview-nav-link"
+          :class="{ active: isShortListActive(), collapsed: isCollapsed }"
+          title="Minicourse Recapper"
+          @click="closeMobileMenuOnNavigation"
+        >
+          <span class="section-icon"><i class="bi bi-list-check"></i></span>
+          <span class="section-title" v-show="!isCollapsed">Minicourse Recapper</span>
+        </router-link>
+
+        <!-- Interview Questions -->
         <router-link
           to="/interview-questions"
-          class="interview-nav-link"
+          class="interview-nav-link last"
           :class="{ active: isInterviewActive(), collapsed: isCollapsed }"
-          title="Interview Questions"
-          @click="handleItemClick"
+          title="Prep Interview Questions"
+          @click="closeMobileMenuOnNavigation"
         >
           <span class="section-icon"><i class="bi bi-question-circle-fill"></i></span>
-          <span class="section-title" v-show="!isCollapsed">Interview Questions</span>
+          <span class="section-title" v-show="!isCollapsed">Prep Interview Questions</span>
         </router-link>
       </div>
 
-      <!-- Curriculum Sections -->
+      <!-- Curriculum Sections - Only show if curriculum exists for the topic -->
       <div
-        v-for="(section, index) in curriculum"
+        v-if="topicStore.hasCurriculum && currentCurriculum.length > 0"
+        :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }"
+      >
+        <label>{{ isCollapsed ? 'Course' : 'Full Prepper Course' }}</label>
+      </div>
+      <div
+        v-for="(section, index) in currentCurriculum"
         :key="`section-${index}`"
         class="section-item"
         :ref="
@@ -74,7 +95,7 @@
               completed: isLessonCompleted(index, lessonIndex),
               active: isLessonActive(index, lessonIndex),
             }"
-            @click="scrollToSection(index)"
+            @click="closeMobileMenuOnNavigation"
           >
             {{ lesson.title }}
           </router-link>
@@ -86,29 +107,38 @@
               completed: isChallengeCompleted(index),
               active: isChallengeActive(index),
             }"
-            @click="scrollToSection(index)"
+            @click="closeMobileMenuOnNavigation"
           >
             Section Challenge
           </router-link>
         </div>
       </div>
+
+      <!-- Show message if no curriculum is available -->
+      <div
+        v-if="!loading && topicStore.hasCurriculum && currentCurriculum.length === 0"
+        class="no-curriculum-message"
+      >
+        <p class="text-center">
+          No curriculum is available for {{ topicStore.currentTopicName }} at this time.
+        </p>
+      </div>
+
+      <div v-if="loading" class="loading-message">
+        <p class="text-center">Loading {{ topicStore.currentTopicName }} curriculum...</p>
+      </div>
     </div>
 
-    <!-- Bottom Home Button (keeping this for consistency) -->
-    <div class="home-button">
-      <router-link to="/" title="Home" :class="{ active: isHomeActive() }" @click="handleHomeClick">
-        <i class="bi bi-house-door-fill"></i>
-        <span v-show="!isCollapsed">Home</span>
-      </router-link>
-    </div>
+    <div class="section-bottom"></div>
   </aside>
 </template>
 
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useProgressStore } from '../store/progress'
-import { curriculum } from '../data/curriculum'
+import { useTopicStore } from '../store/topic'
 import { useRoute } from 'vue-router'
+import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 const props = defineProps({
   isCollapsed: {
@@ -121,9 +151,36 @@ const emit = defineEmits(['toggle', 'close', 'expand'])
 
 const route = useRoute()
 const progressStore = useProgressStore()
-const openSections = ref([]) // Start with all sections collapsed
+const topicStore = useTopicStore()
+const openSections = ref([])
 const sidebarContent = ref(null)
 const sectionRefs = ref({})
+const currentCurriculum = ref([])
+const loading = ref(true)
+const sectionCompletionMap = ref({})
+
+// Load the curriculum for the current topic
+const loadCurriculum = async () => {
+  loading.value = true
+  try {
+    currentCurriculum.value = await getCurrentCurriculum()
+  } catch (error) {
+    console.error('Error loading curriculum for sidebar:', error)
+    currentCurriculum.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const updateCompletionMap = async () => {
+  if (!currentCurriculum.value || currentCurriculum.value.length === 0) return
+
+  const completionMap = {}
+  for (let i = 0; i < currentCurriculum.value.length; i++) {
+    completionMap[i] = await progressStore.isSectionCompleted(i)
+  }
+  sectionCompletionMap.value = completionMap
+}
 
 // Watch for route changes to update active sections and scroll position
 watch(
@@ -132,7 +189,7 @@ watch(
     const currentSectionId = parseInt(newParams.sectionId)
 
     if (currentSectionId) {
-      // Close all other sections and only open the current one
+      // We only want the currently toggled menu section to be open
       openSections.value = [currentSectionId - 1]
 
       // Wait for DOM update after changing openSections
@@ -145,51 +202,70 @@ watch(
   { immediate: true },
 )
 
+// Watch for topic changes to update curriculum
+watch(
+  () => topicStore.currentTopic,
+  async () => {
+    openSections.value = []
+    await loadCurriculum()
+    updateCompletionMap()
+  },
+)
+
+// watcher to update completion status when progress changes
+watch(
+  () => progressStore.topicProgress,
+  () => {
+    updateCompletionMap()
+  },
+  { deep: true },
+)
+
 // Initialize sidebar state based on the current route
 onMounted(async () => {
+  await loadCurriculum()
+  updateCompletionMap()
+
   const currentSectionId = parseInt(route.params.sectionId)
 
   if (currentSectionId) {
-    // Only open the section that matches the current route
     openSections.value = [currentSectionId - 1]
 
-    // Wait for DOM update
     await nextTick()
 
-    // Scroll to active section after component is mounted and sections are expanded
     scrollToSection(currentSectionId - 1)
   }
 })
 
-// Handle click on section header
 const handleSectionClick = (sectionIndex) => {
+  // Don't close mobile menu when clicking on expandable sections
+  // Only if it's a direct navigation (non-numeric sectionIndex like '/' or other paths)
+  if (window.innerWidth < 768 && typeof sectionIndex !== 'number') {
+    emit('close')
+  }
+
   // If sidebar is collapsed, expand it first then open the section
   if (props.isCollapsed) {
-    emit('expand') // Emit event to expand sidebar
+    const menuLinkURL = sectionIndex && sectionIndex.RouterLink
+    // only the lessons sections exand the menu, as they have sub menu items
+    if (
+      menuLinkURL !== '/minicourse-recapper' ||
+      menuLinkURL !== '/interview-questions' ||
+      menuLinkURL !== '/'
+    ) {
+      // toggles the sidebar to expand
+      emit('toggle')
 
-    // After sidebar expands, open the section
-    nextTick(() => {
-      openSections.value = [sectionIndex]
+      // then expand the menu sub section
       nextTick(() => {
-        scrollToSection(sectionIndex)
+        openSections.value = [sectionIndex]
+        nextTick(() => {
+          scrollToSection(sectionIndex)
+        })
       })
-    })
+    }
   } else {
     toggleSection(sectionIndex)
-  }
-}
-
-// Handle click on any item that should expand the sidebar if collapsed
-const handleItemClick = () => {
-  if (props.isCollapsed) {
-    emit('expand') // Emit event to expand sidebar
-  }
-}
-
-// Handle click on home button
-const handleHomeClick = () => {
-  if (props.isCollapsed) {
-    emit('expand') // Emit event to expand sidebar
   }
 }
 
@@ -264,8 +340,12 @@ const isInterviewActive = () => {
   )
 }
 
+const isShortListActive = () => {
+  return route.name === 'shortlist' || route.name === 'shortlist-lesson'
+}
+
 const isSectionCompleted = (sectionIndex) => {
-  return progressStore.isSectionCompleted(sectionIndex)
+  return sectionCompletionMap.value[sectionIndex] || false
 }
 
 const isLessonCompleted = (sectionIndex, lessonIndex) => {
@@ -274,6 +354,12 @@ const isLessonCompleted = (sectionIndex, lessonIndex) => {
 
 const isChallengeCompleted = (sectionIndex) => {
   return progressStore.isChallengeCompleted(sectionIndex)
+}
+
+const closeMobileMenuOnNavigation = () => {
+  if (window.innerWidth < 768) {
+    emit('close')
+  }
 }
 </script>
 
@@ -285,7 +371,7 @@ const isChallengeCompleted = (sectionIndex) => {
   transition: width 0.3s ease;
   height: 100vh;
   position: fixed;
-  top: 60px; /* Adjust based on your header height */
+  top: 60px;
   left: 0;
   bottom: 0;
   display: flex;
@@ -294,8 +380,64 @@ const isChallengeCompleted = (sectionIndex) => {
   box-shadow: var(--shadow-sm);
 }
 
+.home-nav-link {
+  flex: 3;
+}
+
+.sidebar-top-nav[data-v-53430c37] {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-sidebar);
+  z-index: 10;
+  transition: flex-direction 0.3s ease;
+}
+
+.sidebar-toggle {
+  text-align: center;
+  border-left: 1px solid var(--border-color);
+  transition: border 0.3s ease;
+  color: var(--text-color);
+}
+.sidebar-toggle .bi,
+.home-button .bi,
+.mobile-menu-toggle .bi {
+  font-size: 1.4rem;
+}
+
 .sidebar.collapsed {
   width: 60px;
+}
+
+.menu-label label {
+  padding: 0 10px;
+  font-weight: 500;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.menu-label.collapsed label {
+  font-size: 0.65rem;
+  padding: 0;
+}
+
+/* Improved scrollbar for sidebar */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background-color: #adb5bd;
+  border-radius: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background-color: #6c757d;
 }
 
 /* Top Nav Section */
@@ -336,14 +478,7 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .home-nav-link {
-  color: var(--text-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  border-radius: 4px;
-  padding: 5px;
-  transition: all 0.2s ease;
+  flex: 3;
 }
 
 .home-nav-link:hover,
@@ -353,13 +488,12 @@ const isChallengeCompleted = (sectionIndex) => {
 
 .home-nav-link.active {
   color: var(--primary-color);
-  background-color: var(--sidebar-active);
 }
 
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 5px;
 }
 
 .sidebar-title {
@@ -416,7 +550,7 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .sidebar.collapsed .section-header {
-  padding: 8px 0;
+  padding: 5px 0;
   justify-content: center;
 }
 
@@ -426,6 +560,10 @@ const isChallengeCompleted = (sectionIndex) => {
 
 .section-title {
   flex: 1;
+}
+
+.section-bottom {
+  padding: 50px;
 }
 
 .lesson-list {
@@ -504,24 +642,33 @@ const isChallengeCompleted = (sectionIndex) => {
 /* Updated interview questions styles */
 .interview-questions-item {
   margin-bottom: 20px;
-  padding: 10px 0;
+  padding: 0;
   border-bottom: 1px solid var(--border-color);
 }
 
 .interview-nav-link {
   display: flex;
   align-items: center;
-  padding: 10px 15px;
-  border-radius: 8px;
-  text-decoration: none;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  transition: background-color 0.2s ease;
   color: var(--text-color);
-  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
+.interview-nav-link.last {
+  margin-top: 10px;
 }
 
 /* Handle collapsed state for interview link */
 .interview-nav-link.collapsed {
   justify-content: center;
   padding: 10px 0;
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-sm);
 }
 
 .interview-nav-link:hover {
@@ -529,20 +676,26 @@ const isChallengeCompleted = (sectionIndex) => {
 }
 
 .interview-nav-link.active {
-  background-color: var(--primary-color);
-  color: white;
+  background-color: var(--sidebar-active);
+}
+
+a.router-link-active.router-link-exact-active.interview-nav-link {
+  background-color: var(--sidebar-active);
 }
 
 .section-icon {
+  margin-right: 10px;
+  font-weight: bold;
+  min-width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  margin-right: 10px;
-  transition: margin 0.3s ease;
+  background: var(--section-number-gradient);
+  color: var(--text-light);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 /* Remove margin when sidebar is collapsed */
@@ -556,6 +709,15 @@ const isChallengeCompleted = (sectionIndex) => {
 
 .interview-nav-link i {
   font-size: 14px;
+}
+
+.no-curriculum-message,
+.loading-message {
+  padding: 15px;
+  margin: 20px 0;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.9rem;
 }
 
 /* Media query for mobile */

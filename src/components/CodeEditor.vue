@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useProgressStore } from '../store/progress'
 import { useAIStore } from '../store/ai'
 import Prism from 'prismjs'
@@ -199,6 +199,9 @@ const submitAndGradeCode = async () => {
         sectionTitle,
         savedCode,
         aiStore.version,
+        aiStore.customModel,
+        aiStore.customEndpoint,
+        aiStore.customHeaders,
       )
 
       // Store the AI response
@@ -210,6 +213,14 @@ const submitAndGradeCode = async () => {
       }
 
       emit('code-graded', response)
+
+      // Scroll to the AI Code-Review section
+      nextTick(() => {
+        const aiResponseSection = document.getElementById('ai-response-section')
+        if (aiResponseSection) {
+          aiResponseSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      })
     } catch (error) {
       aiStore.setError(error.message)
     } finally {
@@ -263,12 +274,11 @@ const resetCode = () => {
 }
 
 .editor-preview {
-  padding: 0 10px;
+  padding: 10px;
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-sidebar);
 }
 
-/* Preview container with limited height */
 .preview-container {
   position: relative;
   border-radius: 5px;
@@ -282,8 +292,7 @@ const resetCode = () => {
   border-radius: 5px;
   padding: 1rem;
   overflow-y: auto;
-  /* Set height based on line-height to show around 10 lines */
-  max-height: calc(1.5rem * 10 + 2rem); /* line-height * 10 lines + padding */
+  max-height: calc(1.5rem * 10 + 2rem);
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
 }
@@ -308,22 +317,6 @@ const resetCode = () => {
   background-color: rgba(128, 128, 128, 0.6);
 }
 
-/* Override to ensure code blocks display properly */
-:deep(pre) {
-  margin: 0;
-}
-
-:deep(code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  white-space: pre;
-  word-spacing: normal;
-  word-break: normal;
-  word-wrap: normal;
-  line-height: 1.5;
-  tab-size: 4;
-  hyphens: none;
-}
-
 .editor-footer {
   padding: 10px;
   background-color: var(--bg-sidebar);
@@ -334,6 +327,6 @@ const resetCode = () => {
 /* Dark mode adjustments */
 html[data-theme='dark'] .limited-height-preview,
 body.dark-mode .limited-height-preview {
-  background-color: #1e1e3f;
+  background-color: #101025;
 }
 </style>

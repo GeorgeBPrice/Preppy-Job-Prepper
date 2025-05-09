@@ -1,7 +1,7 @@
 <template>
   <div class="curriculum-content" v-if="section">
     <!-- Top "Mark as completed" checkbox -->
-    <div class="top-completion-status" v-if="lesson && !isChallenge">
+    <div class="top-completion-status" v-if="lesson && !isChallenge && !isShortlistRoute">
       <div class="form-check">
         <input
           class="form-check-input"
@@ -59,7 +59,7 @@
         :id="`section-${index}`"
       >
         <h4>{{ sectionContent.title }}</h4>
-        <div v-html="sectionContent.explanation" class="explanation"></div>
+        <div v-html="sectionContent.explanation" class="explanation" ref="explanationContent"></div>
 
         <div v-if="sectionContent.codeExample" class="code-example">
           <h5>Interview Focus Examples:</h5>
@@ -78,7 +78,7 @@
         </div>
 
         <div v-if="sectionContent.exercise" class="exercise">
-          <h5>Exercise:</h5>
+          <h5>Prep Exercise:</h5>
           <p>{{ sectionContent.exercise.instructions }}</p>
         </div>
       </div>
@@ -139,10 +139,13 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted, onUpdated } from 'vue'
-import { getSection } from '../data/curriculum'
+import { computed, ref, watch, onMounted, onUpdated, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useProgressStore } from '../store/progress'
+import { useTopicStore } from '../store/topic'
+import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
+import { getSection, getShortlistSection } from '../utils/curriculumLoader'
 
 // Custom syntax highlighting styling for better readability
 import 'prismjs/components/prism-javascript'
@@ -162,70 +165,144 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  curriculumSource: {
+    type: Array,
+    default: null,
+  },
 })
 
+const route = useRoute()
 const progressStore = useProgressStore()
-const copySuccess = ref(false)
+const topicStore = useTopicStore()
+const explanationContent = ref(null)
+const section = ref(null)
+const lesson = ref(null)
+const challenge = ref(null)
+const loading = ref(true)
 
-const section = computed(() => {
+// Check if we're on the shortlist route
+const isShortlistRoute = computed(() => {
+  return route.path.includes('/minicourse-recapper')
+})
+
+// Load the appropriate section and lesson
+const loadContent = async () => {
+  loading.value = true
+
   try {
-    return getSection(props.sectionId)
+    // Load section based on the route type
+    if (isShortlistRoute.value) {
+      section.value = await getShortlistSection(props.sectionId)
+    } else {
+      section.value = await getSection(props.sectionId)
+    }
+
+    // Load lesson or challenge
+    if (props.isChallenge) {
+      challenge.value = section.value?.challenge || null
+      lesson.value = null
+    } else if (props.lessonId && section.value) {
+      lesson.value = section.value.lessons[props.lessonId - 1] || null
+      challenge.value = null
+    } else {
+      lesson.value = null
+      challenge.value = null
+    }
+
+    checkCompletion()
   } catch (error) {
-    console.error(error.message)
-    return null
+    console.error('Error loading curriculum content:', error)
+    section.value = null
+    lesson.value = null
+    challenge.value = null
+  } finally {
+    loading.value = false
   }
-})
+}
 
-const lesson = computed(() => {
-  if (!section.value || props.isChallenge || !props.lessonId) {
-    return null
-  }
-
-  try {
-    return section.value.lessons[props.lessonId - 1]
-  } catch (error) {
-    console.error(
-      `Lesson ${props.lessonId} not found in section ${props.sectionId}: ${error.message}`,
-    )
-    return null
-  }
-})
-
-const challenge = computed(() => {
-  if (!section.value || !props.isChallenge) {
-    return null
-  }
-
-  return section.value.challenge
-})
-
-// Using a ref for the checkbox state to keep both checkboxes in sync
+// Using a ref for the checkbox state to keep both checkboxes in sync (at top and bottom of page)
 const isLessonCompleted = ref(false)
 
-// Initialize checkbox state
+// Initialize checkbox state and add copy buttons to explanation code blocks
 onMounted(() => {
-  checkCompletion()
+  loadContent()
 
   // Apply custom Prism styling directly
   applyCustomPrismStyling()
+
+  // Add copy buttons to explanation code blocks after DOM update
+  nextTick(() => {
+    addCopyButtonsToExplanationCode()
+  })
 })
 
-// Watch for props changes to update completion status
+// Watch for changes to section, lesson, or topic
 watch(
-  () => [props.sectionId, props.lessonId],
+  [
+    () => props.sectionId,
+    () => props.lessonId,
+    () => topicStore.currentTopic,
+    () => props.isChallenge,
+  ],
   () => {
-    checkCompletion()
+    loadContent()
   },
 )
 
 // Watch for progress store changes
 watch(
-  () => progressStore.completedLessons,
+  () => progressStore.currentTopicProgress,
   () => {
     checkCompletion()
   },
   { deep: true },
 )
+
+watch(
+  () => progressStore._forceUpdate,
+  () => {
+    checkCompletion()
+  },
+)
+
+// Function to add copy buttons to explanation code blocks
+const addCopyButtonsToExplanationCode = () => {
+  const sections = document.querySelectorAll('.explanation pre')
+
+  sections.forEach((preElement) => {
+    // Check if button already exists to avoid duplicates
+    if (!preElement.parentElement.querySelector('.code-copy-btn')) {
+      // Create wrapper if needed
+      if (preElement.parentElement.style.position !== 'relative') {
+        preElement.parentElement.style.position = 'relative'
+      }
+
+      // Create copy button
+      const copyButton = document.createElement('div')
+      copyButton.className = 'code-copy-btn'
+      copyButton.title = 'Copy code'
+
+      // Create icon
+      const icon = document.createElement('i')
+      icon.className = 'bi bi-clipboard'
+      copyButton.appendChild(icon)
+
+      // Add click event
+      copyButton.addEventListener('click', () => {
+        const codeText = preElement.textContent
+        copyCode(codeText)
+        copyButton.style.transition = 'background-color 0.3s ease'
+        copyButton.style.backgroundColor = 'white'
+        setTimeout(() => {
+          copyButton.style.backgroundColor = ''
+        }, 300)
+      })
+
+      // Add button to parent of pre element
+      preElement.parentElement.appendChild(copyButton)
+    }
+  })
+}
 
 // Function to scroll to a specific section
 const scrollToSection = (sectionId) => {
@@ -260,10 +337,13 @@ const toggleLessonComplete = () => {
   const lessonIndex = props.lessonId - 1
 
   if (isLessonCompleted.value) {
-    progressStore.completeLesson(sectionIndex, lessonIndex)
+    progressStore.completeLesson(sectionIndex, lessonIndex, true)
   } else {
-    progressStore.uncompleteLesson(sectionIndex, lessonIndex)
+    progressStore.uncompleteLesson(sectionIndex, lessonIndex, true)
   }
+
+  // Force reactivity update
+  progressStore._forceUpdate++
 }
 
 // Function to escape HTML in the code examples
@@ -278,158 +358,15 @@ const escapeHtml = (unsafe) => {
 
 // Function to highlight code using Prism
 const highlightedCode = (code) => {
-  // Apply custom syntax highlighting
   const escapedCode = escapeHtml(code)
 
   // Return escaped code (Prism will highlight it after mounting)
   return escapedCode
 }
 
-// Function to copy code to clipboard
+// Copy code to clipboard, from explanations and challenges
 const copyCode = (code) => {
-  navigator.clipboard.writeText(code).then(
-    () => {
-      copySuccess.value = true
-
-      // Show a toast or notification here if desired
-      console.log('Code copied to clipboard')
-
-      // Reset after a brief period
-      setTimeout(() => {
-        copySuccess.value = false
-      }, 2000)
-    },
-    (err) => {
-      console.error('Could not copy code: ', err)
-    },
-  )
-}
-
-// Apply custom Prism styling
-const applyCustomPrismStyling = () => {
-  // This injects a more readable style via JavaScript
-  const styleElement = document.createElement('style')
-  styleElement.textContent = `
-    /* Custom Syntax Highlighting for Improved Readability */
-    :root {
-      --code-comment: #b3bcc6;
-      --code-keyword: #5a67d8;
-      --code-function: #3182ce;
-      --code-string: #38a169;
-      --code-number: #d69e2e;
-      --code-operator: #e53e3e;
-      --code-variable: #2b6cb0;
-      --code-class: #805ad5;
-      --code-punctuation: #718096;
-      --code-regex: #319795;
-      --code-attr-name: #dd6b20;
-      --code-attr-value: #38a169;
-    }
-    
-    [data-theme='dark'] {
-      --code-comment: #b3bcc6;
-      --code-keyword: #7f9cf5;
-      --code-function: #63b3ed;
-      --code-string: #68d391;
-      --code-number: #f6e05e;
-      --code-operator: #fc8181;
-      --code-variable: #90cdf4;
-      --code-class: #b794f4;
-      --code-punctuation: #cbd5e0;
-      --code-regex: #4fd1c5;
-      --code-attr-name: #fbd38d;
-      --code-attr-value: #68d391;
-    }
-    
-    /* Tokens styling */
-    .token.comment,
-    .token.prolog,
-    .token.doctype,
-    .token.cdata {
-      color: var(--code-comment);
-      font-style: italic;
-    }
-    
-    .token.namespace {
-      opacity: 0.8;
-    }
-    
-    .token.keyword {
-      color: var(--code-keyword);
-      font-weight: 600;
-    }
-    
-    .token.function {
-      color: var(--code-function);
-    }
-    
-    .token.string {
-      color: var(--code-string);
-    }
-    
-    .token.number,
-    .token.boolean {
-      color: var(--code-number);
-    }
-    
-    .token.operator {
-      color: var(--code-operator);
-    }
-    
-    .token.property,
-    .token.variable,
-    .token.symbol {
-      color: var(--code-variable);
-    }
-    
-    .token.selector,
-    .token.attr-name,
-    .token.builtin {
-      color: var(--code-attr-name);
-    }
-    
-    .token.attr-value {
-      color: var(--code-attr-value);
-    }
-    
-    .token.entity,
-    .token.url,
-    .token.regex {
-      color: var(--code-regex);
-    }
-    
-    .token.important {
-      color: var(--code-operator);
-      font-weight: bold;
-    }
-    
-    .token.punctuation {
-      color: var(--code-punctuation);
-    }
-
-    /* Line highlighting */
-    .code-line {
-      display: block;
-      line-height: 1.5;
-      position: relative;
-    }
-    
-    .code-line:not(:last-child) {
-      margin-bottom: 3px;
-    }
-    
-    /* Syntax block styling */
-    .syntax-block {
-      border-left: 3px solid rgba(0,0,0,0.1);
-      padding-left: 8px;
-      margin: 5px 0;
-    }
-    
-    [data-theme='dark'] .syntax-block {
-      border-left-color: rgba(255,255,255,0.1);
-    }
-  `
-  document.head.appendChild(styleElement)
+  navigator.clipboard.writeText(code)
 }
 
 // Apply Prism highlighting after the component updates
@@ -439,6 +376,10 @@ onMounted(() => {
 
 onUpdated(() => {
   Prism.highlightAll()
+  // Re-add copy buttons after DOM updates
+  nextTick(() => {
+    addCopyButtonsToExplanationCode()
+  })
 })
 </script>
 
@@ -729,70 +670,8 @@ onUpdated(() => {
   overflow: hidden;
 }
 
-.scrollable-code {
-  margin: 0;
-  padding: 1rem;
-  border-radius: 6px;
-  background-color: #171717;
-  overflow-x: auto;
-  overflow-y: auto;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
-  font-size: 0.95rem;
-  max-height: 70vh; /* Maximum height of 70% of viewport height */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-/* Custom scrollbar styles */
-.scrollable-code::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollable-code::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.scrollable-code::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
 .code-wrapper code {
   color: #e4e4e4;
-}
-
-.code-copy-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--text-muted);
-  border: none;
-  border-radius: 4px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0.6;
-  z-index: 5;
-}
-
-.code-wrapper:hover .code-copy-btn {
-  opacity: 1;
-}
-
-.code-copy-btn:hover {
-  background-color: var(--primary-color);
-  color: white;
 }
 
 .exercise {
@@ -852,6 +731,10 @@ onUpdated(() => {
   margin-bottom: 0.5rem;
 }
 
+.form-check {
+  background-color: var(--primary-gradient);
+}
+
 :deep(.prepper-summary h4) {
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
@@ -888,23 +771,6 @@ onUpdated(() => {
   tab-size: 4;
   hyphens: none;
   font-size: 0.95rem;
-}
-
-/* Add dark mode styles for embedded HTML content */
-:deep(h1),
-:deep(h2),
-:deep(h3),
-:deep(h4),
-:deep(h5),
-:deep(h6) {
-  color: var(--text-color);
-}
-
-:deep(p),
-:deep(li),
-:deep(ul),
-:deep(ol) {
-  color: var(--text-color);
 }
 
 /* Inline code formatting in explanations */
@@ -994,8 +860,5 @@ onUpdated(() => {
     margin-top: 6px;
     gap: 6px;
   }
-
-  /* .section-link {
-  } */
 }
 </style>

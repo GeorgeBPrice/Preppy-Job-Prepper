@@ -5,8 +5,12 @@
       'sidebar-mobile-open': isMobileMenuOpen,
       'dark-mode': isDarkMode,
     }"
+    @click="handleOutsideClick"
   >
-    <AppHeader @toggle-mobile-menu="handleMobileMenuToggle" />
+    <AppHeader
+      @toggle-mobile-menu="handleMobileMenuToggle"
+      :isMobileMenuOpenExternal="isMobileMenuOpen"
+    />
     <div
       class="main-content"
       :class="{
@@ -14,13 +18,19 @@
         'dark-mode': isDarkMode,
       }"
     >
-      <AppSidebar :is-collapsed="isSidebarCollapsed && !isMobileMenuOpen" @toggle="toggleSidebar" />
+      <AppSidebar
+        :is-collapsed="isSidebarCollapsed && !isMobileMenuOpen"
+        @toggle="toggleSidebar"
+        @close="closeMobileMenu"
+      />
       <main class="content-area" :class="{ 'dark-mode': isDarkMode }">
         <router-view></router-view>
         <BackToTop />
       </main>
     </div>
   </div>
+  <!-- Modal HTML for Congratulations Popup -->
+  <CourseCompletedModal />
 </template>
 
 <script setup>
@@ -29,12 +39,17 @@ import AppSidebar from './components/AppSidebar.vue'
 import BackToTop from './components/BackToTop.vue'
 import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
 import { useProgressStore } from './store/progress'
-import { useThemeStore } from './store/theme'
+import { useTopicStore } from './store/topic'
+import { useThemeStore } from './theme/theme'
+import CourseCompletedModal from '@/components/CourseCompletedModal.vue'
+import useCongratulationsModal from './scripts/useCongratulationsModal'
 
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const themeStore = useThemeStore()
 const isSidebarCollapsed = ref(false)
 const isMobileMenuOpen = ref(false)
+const initialLoadDone = ref(false)
 
 // Create a computed property for dark mode
 const isDarkMode = computed(() => themeStore.isDarkMode)
@@ -44,6 +59,37 @@ onBeforeMount(() => {
   if (!themeStore.isLoaded) {
     themeStore.loadThemePreference()
   }
+})
+
+// Initialize required data on app mount
+onMounted(async () => {
+  // Load topic preference
+  if (!topicStore.isLoaded) {
+    topicStore.loadTopicPreference()
+    // Check which topics have curriculum available
+    await topicStore.initializeTopics()
+  }
+
+  // Load progress data
+  if (!progressStore.isLoaded) {
+    progressStore.loadProgress()
+  }
+
+  // Initial theme application
+  if (themeStore.isDarkMode) {
+    document.body.classList.add('dark-mode')
+    document.documentElement.setAttribute('data-theme', 'dark')
+  } else {
+    document.body.classList.remove('dark-mode')
+    document.documentElement.setAttribute('data-theme', 'light')
+  }
+
+  // Check initial screen size
+  if (window.innerWidth < 768) {
+    isSidebarCollapsed.value = true
+  }
+
+  initialLoadDone.value = true
 })
 
 // Watch theme changes to update body class and document attributes
@@ -81,23 +127,46 @@ const toggleSidebar = () => {
   }
 }
 
-onMounted(() => {
-  progressStore.loadProgress()
+// Close mobile menu when clicking outside
+const handleOutsideClick = (event) => {
+  // Only handle clicks when the mobile menu is open and on mobile
+  if (isMobileMenuOpen.value && window.innerWidth < 768) {
+    // Check if click is outside the sidebar
+    const sidebar = document.querySelector('.sidebar')
+    const header = document.querySelector('.app-header')
 
-  // Initial theme application
-  if (themeStore.isDarkMode) {
-    document.body.classList.add('dark-mode')
-    document.documentElement.setAttribute('data-theme', 'dark')
-  } else {
-    document.body.classList.remove('dark-mode')
-    document.documentElement.setAttribute('data-theme', 'light')
+    if (sidebar && header && !sidebar.contains(event.target) && !header.contains(event.target)) {
+      isMobileMenuOpen.value = false
+    }
   }
+}
 
-  // Check initial screen size
+// Close mobile menu explicitly
+const closeMobileMenu = () => {
   if (window.innerWidth < 768) {
-    isSidebarCollapsed.value = true
+    isMobileMenuOpen.value = false
   }
-})
+}
+
+// Watch overall progress and trigger completion logic
+watch(
+  () => initialLoadDone.value && progressStore.overallProgress,
+  async (progressGetter) => {
+    if (!initialLoadDone.value) return
+
+    // Since overallProgress is now an async getter, we need to resolve it
+    const percentage = Math.round((await progressGetter) * 100)
+
+    if (percentage <= 99) {
+      localStorage.removeItem('congratulated')
+    }
+    if (percentage === 100 && !localStorage.getItem('congratulated')) {
+      // call script to fire off congrats modal
+      useCongratulationsModal()
+    }
+  },
+  { immediate: false },
+)
 </script>
 
 <style>
@@ -116,7 +185,7 @@ onMounted(() => {
 .main-content {
   display: flex;
   flex: 1;
-  padding-top: 60px; /* Header height */
+  padding-top: 60px;
   position: relative;
   background-color: var(--bg-color);
 }
@@ -125,31 +194,22 @@ onMounted(() => {
   background-color: #111827;
 }
 
-/* Initial content-area styles - sidebar is 300px wide */
 .content-area {
   flex: 1;
   padding: 20px;
-  margin-left: 300px; /* Match the sidebar width */
+  margin-left: 300px;
   transition: margin-left 0.3s ease;
-  width: calc(100% - 300px); /* Calculate the remaining width */
+  width: calc(100% - 300px);
   border-radius: 0.5rem;
   background-color: var(--bg-content);
 }
 
-/* Dark mode specific styles for content area - stronger specificity */
-.content-area.dark-mode,
-.dark-mode .content-area {
-  background-color: #181d29 !important;
-  color: #e4dce6 !important;
-}
-
-/* When sidebar is collapsed, adjust content-area margins - sidebar is 60px wide */
+/* CSS fix for content. */
 .sidebar-collapsed .content-area {
-  margin-left: 60px; /* Match the collapsed sidebar width */
-  width: calc(100% - 60px); /* Calculate the remaining width */
+  margin-left: 60px;
+  width: calc(100% - 60px);
 }
 
-/* Mobile styles */
 @media (max-width: 767px) {
   .content-area {
     margin-left: 0;
@@ -157,11 +217,6 @@ onMounted(() => {
     transition:
       margin-left 0.3s ease,
       width 0.3s ease;
-  }
-
-  .sidebar-mobile-open .content-area {
-    margin-left: 300px;
-    width: calc(100% - 300px);
   }
 
   .sidebar-mobile-open::after {
@@ -174,6 +229,12 @@ onMounted(() => {
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 900;
     transition: opacity 0.3s;
+  }
+  /* congratulations */
+  button.close {
+    border: none;
+    background: none;
+    font-size: 2em;
   }
 }
 </style>

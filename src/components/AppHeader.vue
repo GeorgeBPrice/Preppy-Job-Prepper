@@ -11,31 +11,53 @@
 
           <!-- Logo -->
           <div class="logo">
-            <svg width="50" height="30" viewBox="0 0 70 40" class="logo-svg">
-              <defs>
-                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#4F46E5" />
-                  <stop offset="100%" stop-color="#7C3AED" />
-                </linearGradient>
-              </defs>
-              <rect width="70" height="40" rx="8" fill="url(#logoGradient)" />
-              <text
-                x="10"
-                y="25"
-                font-family="Arial, sans-serif"
-                font-size="14"
-                font-weight="bold"
-                fill="white"
-              >
-                PreppY
-              </text>
-            </svg>
+            <router-link to="/">
+              <svg width="50" height="30" viewBox="0 0 70 40" class="logo-svg">
+                <defs>
+                  <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#4F46E5" />
+                    <stop offset="100%" stop-color="#7C3AED" />
+                  </linearGradient>
+                </defs>
+                <rect width="70" height="40" rx="8" fill="url(#logoGradient)" />
+                <text
+                  x="10"
+                  y="25"
+                  font-family="Arial, sans-serif"
+                  font-size="14"
+                  font-weight="bold"
+                  fill="white"
+                >
+                  PreppY
+                </text>
+              </svg>
+            </router-link>
           </div>
 
-          <h1 class="gradient-text d-none d-md-block">JavaScript Job Prepper</h1>
-          <h1 class="gradient-text d-inline-block d-md-none">JS Prepper</h1>
-        </div>
+          <!-- Topic Selector Dropdown -->
+          <div class="topic-selector d-none d-md-flex">
+            <label for="topic-select" class="topic-label">Topic:</label>
+            <select
+              id="topic-select"
+              v-model="selectedTopic"
+              @change="changeTopic"
+              class="topic-select"
+            >
+              <option
+                v-for="topic in topicStore.availableTopics"
+                :key="topic.value"
+                :value="topic.value"
+              >
+                {{ topic.label }}
+              </option>
+            </select>
+          </div>
 
+          <h1 class="gradient-text d-none d-md-block">
+            {{ topicStore.currentTopicName }} Job Prepper
+          </h1>
+          <h1 class="gradient-text d-none">{{ topicStore.topicShortName }} Prepper</h1>
+        </div>
         <!-- Middle section: Search bar (only visible on desktop) -->
         <div class="header-center d-none d-md-block">
           <SearchBar @search-closed="searchExpanded = false" />
@@ -43,6 +65,24 @@
 
         <!-- Right section: Theme toggle, Progress, Continue, and mobile search icon -->
         <div class="header-right">
+          <!-- Mobile Topic Selector -->
+          <div class="mobile-topic-selector d-md-none">
+            <select
+              v-model="selectedTopic"
+              @change="changeTopic"
+              class="topic-select-mobile"
+              aria-label="Select topic"
+            >
+              <option
+                v-for="topic in topicStore.availableTopics"
+                :key="topic.value"
+                :value="topic.value"
+              >
+                {{ topic.label }}
+              </option>
+            </select>
+          </div>
+
           <div class="progress-container d-flex">
             <ProgressBar />
           </div>
@@ -54,12 +94,6 @@
           >
             Continue
           </button>
-
-          <!-- Mobile Search Icon -->
-          <!-- BUGGY - NEEDS FIXING -->
-          <!-- <button class="search-toggle d-md-none" @click="openSearch" v-if="!searchExpanded">
-            <i class="bi bi-search"></i>
-          </button> -->
 
           <ThemeToggle />
         </div>
@@ -77,20 +111,39 @@
 import ProgressBar from './ProgressBar.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import SearchBar from './SearchBar.vue'
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
+import { useTopicStore } from '../store/topic'
 
 const emit = defineEmits(['toggle-mobile-menu'])
 const router = useRouter()
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
+
 const mobileMenuOpen = ref(false)
 const searchExpanded = ref(false)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
+const selectedTopic = ref('javascript') // Added ref for topic selection
+
+// Define props to receive mobile menu state from App.vue
+const props = defineProps({
+  isMobileMenuOpenExternal: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+// Watch external mobile menu state changes
+watch(
+  () => props.isMobileMenuOpenExternal,
+  (newState) => {
+    mobileMenuOpen.value = newState
+  },
+)
 
 // Check if there's any user progress to determine if we should show the continue button
 const hasProgress = computed(() => {
-  // Look for any completed lesson or if current lesson position is saved
   return (
     progressStore.currentLesson &&
     (progressStore.currentLesson.section > 0 ||
@@ -99,12 +152,17 @@ const hasProgress = computed(() => {
 })
 
 onMounted(() => {
-  // Make sure progress is loaded
+  // set progress state
   if (!progressStore.isLoaded) {
     progressStore.loadProgress()
   }
 
-  // Handle window resize to reset search state
+  // Load topic preference
+  if (!topicStore.isLoaded) {
+    topicStore.loadTopicPreference()
+  }
+  selectedTopic.value = topicStore.currentTopic
+
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize)
   }
@@ -125,29 +183,61 @@ const handleResize = () => {
   }
 }
 
-const goToCurrentProgress = () => {
-  router.push({
-    name: 'lesson',
-    params: {
-      sectionId: progressStore.currentLesson.section + 1,
-      lessonId: progressStore.currentLesson.lesson + 1,
-    },
-  })
+// Handle topic change - redirect to home page
+const changeTopic = () => {
+  // Only take action if there's actually a change
+  if (selectedTopic.value !== topicStore.currentTopic) {
+    // Set the new topic
+    topicStore.setTopic(selectedTopic.value)
+
+    // Always navigate to home page when switching topics
+    router.push('/')
+  }
+}
+
+const goToCurrentProgress = async () => {
+  try {
+    const nextItem = await progressStore.nextUncompletedItem
+    if (nextItem) {
+      if (nextItem.type === 'lesson') {
+        router.push({
+          name: 'lesson',
+          params: {
+            sectionId: nextItem.section + 1,
+            lessonId: nextItem.lesson + 1,
+          },
+        })
+      } else if (nextItem.type === 'challenge') {
+        router.push({
+          name: 'challenge',
+          params: {
+            sectionId: nextItem.section + 1,
+          },
+        })
+      }
+    } else {
+      // If all items are completed, navigate to home
+      router.push('/')
+    }
+  } catch (error) {
+    console.error('Error navigating to current progress:', error)
+    router.push('/')
+  }
 }
 
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value
-  // Directly emit to parent instead of using custom event
   emit('toggle-mobile-menu', mobileMenuOpen.value)
 }
-
-// NEEDS FIXING
-// const openSearch = () => {
-//   searchExpanded.value = true
-// }
 </script>
 
 <style scoped>
+.section-header .bi {
+  font-size: 1.2rem;
+}
+h1.gradient-text {
+  font-weight: 300;
+}
 .app-header {
   padding: 0.5rem 0.75rem;
   position: fixed;
@@ -257,13 +347,64 @@ h1 {
   flex-direction: column;
 }
 
+/* Topic selector styles */
+.topic-selector {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.topic-label {
+  margin-right: 5px;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.topic-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.topic-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.mobile-topic-selector {
+  margin-right: 10px;
+}
+
+.topic-select-mobile {
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  font-size: 0.8rem;
+  max-width: 95px;
+  outline: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 576px) {
-  .continue-btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
+  .topic-label {
+    display: none;
   }
 
+  .topic-select-mobile {
+    max-width: 80px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 767px) {
   .progress-container {
     width: 80px;
   }

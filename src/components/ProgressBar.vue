@@ -26,7 +26,7 @@
     <div v-if="showResetConfirmation" class="reset-confirmation-overlay" @click.self="cancelReset">
       <div class="reset-confirmation-dialog">
         <h4>Reset Progress</h4>
-        <p>Are you sure you want to reset your progress?</p>
+        <p>Are you sure you want to reset your {{ topicStore.currentTopicName }} progress?</p>
         <p class="warning-text">This action cannot be undone.</p>
         <div class="confirmation-actions">
           <button @click="cancelReset" class="btn btn-secondary">Cancel</button>
@@ -38,19 +38,75 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useProgressStore } from '../store/progress'
+import { useTopicStore } from '../store/topic'
 
 const progressStore = useProgressStore()
+const topicStore = useTopicStore()
 const showResetConfirmation = ref(false)
+const progressPercentage = ref(0)
 
-const progressPercentage = computed(() => {
-  return Math.round(progressStore.overallProgress * 100)
-})
+// Calculate progress percentage for the current topic
+const calculateProgress = async () => {
+  try {
+    // Get fresh progress calculation
+    const progress = await progressStore.overallProgress
+    // Update the percentage value
+    progressPercentage.value = Math.round(progress * 100)
+    console.log('Progress calculated:', progressPercentage.value + '%')
+  } catch (error) {
+    console.error('Error calculating progress:', error)
+    progressPercentage.value = 0
+  }
+}
 
 // Only show reset button if there's progress to reset
 const showResetButton = computed(() => {
   return progressStore.hasAnyProgress
+})
+
+// Watch for topic changes to recalculate progress
+watch(
+  () => topicStore.currentTopic,
+  async () => {
+    await calculateProgress()
+  },
+)
+
+// Watch for changes in the progress store's _forceUpdate property
+// This is triggered by the toggleLessonComplete and toggleCompletion functions
+watch(
+  () => progressStore._forceUpdate,
+  async () => {
+    console.log('Progress update triggered')
+    // Force immediate recalculation of progress
+    await calculateProgress()
+  },
+  { immediate: true },
+)
+
+// Watch for direct changes in the topicProgress object
+watch(
+  () => progressStore.topicProgress,
+  async () => {
+    await calculateProgress()
+  },
+  { deep: true },
+)
+
+// Watch for changes in completed lessons specifically
+watch(
+  () => progressStore.completedLessons,
+  async () => {
+    await calculateProgress()
+  },
+  { deep: true },
+)
+
+// Initial progress calculation
+onMounted(() => {
+  calculateProgress()
 })
 
 function confirmReset() {
@@ -61,9 +117,11 @@ function cancelReset() {
   showResetConfirmation.value = false
 }
 
-function resetProgress() {
+async function resetProgress() {
   progressStore.resetProgress()
   showResetConfirmation.value = false
+  // Recalculate progress after reset
+  await calculateProgress()
 }
 </script>
 
