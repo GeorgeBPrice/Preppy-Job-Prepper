@@ -52,9 +52,7 @@ const calculateProgress = async () => {
   try {
     // Get fresh progress calculation
     const progress = await progressStore.overallProgress
-    // Update the percentage value
     progressPercentage.value = Math.round(progress * 100)
-    console.log('Progress calculated:', progressPercentage.value + '%')
   } catch (error) {
     console.error('Error calculating progress:', error)
     progressPercentage.value = 0
@@ -75,12 +73,9 @@ watch(
 )
 
 // Watch for changes in the progress store's _forceUpdate property
-// This is triggered by the toggleLessonComplete and toggleCompletion functions
 watch(
   () => progressStore._forceUpdate,
   async () => {
-    console.log('Progress update triggered')
-    // Force immediate recalculation of progress
     await calculateProgress()
   },
   { immediate: true },
@@ -120,7 +115,6 @@ function cancelReset() {
 async function resetProgress() {
   progressStore.resetProgress()
   showResetConfirmation.value = false
-  // Recalculate progress after reset
   await calculateProgress()
 }
 </script>
