@@ -28,6 +28,8 @@
         <BackToTop />
       </main>
     </div>
+    <!-- AI Chat component -->
+    <AIChat />
   </div>
   <!-- Modal HTML for Congratulations Popup -->
   <CourseCompletedModal />
@@ -37,6 +39,7 @@
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import BackToTop from './components/BackToTop.vue'
+import AIChat from './components/AIChat.vue'
 import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
 import { useProgressStore } from './store/progress'
 import { useTopicStore } from './store/topic'

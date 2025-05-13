@@ -32,8 +32,8 @@ onUnmounted(() => {
 <style scoped>
 .back-to-top {
   position: fixed;
-  bottom: 70px;
-  right: 20px;
+  bottom: 20px;
+  right: 25px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
