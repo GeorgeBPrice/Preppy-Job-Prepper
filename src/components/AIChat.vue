@@ -382,7 +382,7 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
   document.addEventListener('click', handleClickOutside)
 
-  // Set iniial context
+  // Set initial context
   setContextFromPage()
 
   scrollToBottom()

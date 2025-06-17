@@ -148,7 +148,7 @@ watch(
   },
 )
 
-// Check for course progress, conditionallyshow the continue button
+// Conditionally show the continue button
 const hasProgress = computed(() => {
   return (
     progressStore.currentLesson &&
