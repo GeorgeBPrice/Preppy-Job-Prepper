@@ -35,7 +35,14 @@ export const useAIChatStore = defineStore('aiChat', {
 
   getters: {
     availableProviders() {
-      return [
+      // Check for development mode
+      const isDevelopment =
+        typeof window !== 'undefined' &&
+        (window.ENV === 'development' ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1')
+
+      const providers = [
         { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
         { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet' },
         { value: 'claude-3-opus', label: 'Claude 3 Opus' },
@@ -61,9 +68,15 @@ export const useAIChatStore = defineStore('aiChat', {
         { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
         { value: 'qwen-2.5', label: 'Qwen 2.5' },
         { value: 'cohere-command-r-plus', label: 'Cohere Command R+' },
-        { value: 'ollama', label: 'Ollama (Local)' },
         { value: 'other', label: 'Other...' },
       ]
+
+      // Only add Ollama in development mode
+      if (isDevelopment) {
+        providers.push({ value: 'ollama', label: 'Ollama (Local)' })
+      }
+
+      return providers
     },
 
     providerEndpoints() {
@@ -330,6 +343,8 @@ export const useAIChatStore = defineStore('aiChat', {
           timestamp: new Date().toISOString(),
         }
 
+        console.debug('Adding message:', { role, contentLength: content.length, messageId })
+
         // Add the message to the active conversation
         conversation.messages.push(message)
         conversation.timestamp = new Date().toISOString()
@@ -352,42 +367,85 @@ export const useAIChatStore = defineStore('aiChat', {
     startStreamingMessage() {
       const messageId = this.addMessage('assistant', '')
       this.streamingMessageId = messageId
+      console.debug('Started streaming message:', messageId)
       return messageId
     },
 
     // Update streaming message content
     updateStreamingMessage(content) {
-      if (!this.streamingMessageId) return
+      if (!this.streamingMessageId) {
+        console.warn('No streaming message ID found')
+        return
+      }
 
       const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
-      if (!conversation) return
+      if (!conversation) {
+        console.warn('No active conversation found')
+        return
+      }
 
-      const message = conversation.messages.find((msg) => msg.id === this.streamingMessageId)
-      if (message) {
-        message.content += content
+      const messageIndex = conversation.messages.findIndex(
+        (msg) => msg.id === this.streamingMessageId,
+      )
+      if (messageIndex !== -1) {
+        const message = conversation.messages[messageIndex]
+        console.debug('Updating streaming message:', {
+          currentLength: message.content.length,
+          newContent: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+          messageId: this.streamingMessageId,
+        })
+
+        // Ensure reactivity by updating the array element directly
+        conversation.messages[messageIndex] = {
+          ...message,
+          content: message.content + content,
+        }
+
         // Occasionally save if the content gets long
-        if (message.content.length % 500 === 0) {
+        if (conversation.messages[messageIndex].content.length % 500 === 0) {
           this.saveConversations()
         }
+      } else {
+        console.warn('Streaming message not found:', this.streamingMessageId)
       }
     },
 
     // Finalize streaming message
     finalizeStreamingMessage(fullContent) {
-      if (!this.streamingMessageId) return
+      if (!this.streamingMessageId) {
+        console.warn('No streaming message ID to finalize')
+        return
+      }
 
       const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
-      if (!conversation) return
+      if (!conversation) {
+        console.warn('No active conversation found for finalization')
+        return
+      }
 
-      const message = conversation.messages.find((msg) => msg.id === this.streamingMessageId)
-      if (message) {
+      const messageIndex = conversation.messages.findIndex(
+        (msg) => msg.id === this.streamingMessageId,
+      )
+      if (messageIndex !== -1) {
+        const message = conversation.messages[messageIndex]
+        console.debug('Finalizing streaming message:', {
+          finalLength: message.content.length,
+          fullContentLength: fullContent ? fullContent.length : 0,
+          messageId: this.streamingMessageId,
+        })
+
         // complete content if available
         if (fullContent) {
-          message.content = fullContent
+          conversation.messages[messageIndex] = {
+            ...message,
+            content: fullContent,
+          }
         }
 
         this.saveConversations()
         this.streamingMessageId = null
+      } else {
+        console.warn('Streaming message not found for finalization:', this.streamingMessageId)
       }
     },
 
@@ -422,6 +480,13 @@ export const useAIChatStore = defineStore('aiChat', {
             (msg) => msg.content && msg.content.trim() !== '',
           )
 
+          console.debug(
+            'Starting streaming with provider:',
+            this.provider,
+            'filtered messages:',
+            filteredMessages.length,
+          )
+
           // Stream the message in real-time
           const fullResponse = await streamChatMessage(
             filteredMessages,
@@ -435,9 +500,15 @@ export const useAIChatStore = defineStore('aiChat', {
             topic,
             // Callback each chunk
             (chunk) => {
+              console.debug(
+                'Received chunk:',
+                chunk.substring(0, 50) + (chunk.length > 50 ? '...' : ''),
+              )
               this.updateStreamingMessage(chunk)
             },
           )
+
+          console.debug('Streaming completed, final response length:', fullResponse.length)
 
           // Finalize completed response
           this.finalizeStreamingMessage(fullResponse)

@@ -583,34 +583,52 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
     }
     // For Claude
     else if (provider.startsWith('claude')) {
-      // Claude may also use SSE format
-      if (chunk.toString().includes('event:')) {
-        const lines = chunk.toString().split('\n')
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            try {
-              const jsonData = line.slice(5).trim()
-              if (jsonData) {
-                const data = JSON.parse(jsonData)
-                return data.delta?.text || ''
-              }
-            } catch (err) {
-              // Skip invalid JSON
-              console.warn('Skipping invalid JSON in Claude stream:', line, err.message)
+      const chunkStr = chunk.toString()
+      // Skip empty chunks
+      if (!chunkStr.trim()) return ''
+
+      let content = ''
+      // Split the chunk into lines (SSE format sends one event per line)
+      const lines = chunkStr.split('\n')
+
+      for (const line of lines) {
+        // Skip empty lines
+        if (!line.trim()) continue
+
+        // Process lines that start with "data: "
+        if (line.startsWith('data:')) {
+          try {
+            const jsonData = line.replace(/^data:\s*/, '').trim()
+            // Skip empty data
+            if (!jsonData) continue
+
+            // Parse the JSON data
+            const data = JSON.parse(jsonData)
+
+            // Handle Claude's content_block_delta events
+            if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
+              content += data.delta.text || ''
             }
+            // Handle other Claude event types (ignore them but don't error)
+            else if (
+              data.type === 'message_start' ||
+              data.type === 'content_block_start' ||
+              data.type === 'content_block_stop' ||
+              data.type === 'message_delta' ||
+              data.type === 'message_stop' ||
+              data.type === 'ping'
+            ) {
+              // These are control events, not content
+              continue
+            }
+          } catch (err) {
+            // Ignore JSON parse errors for non-JSON lines
+            console.debug('Skipping invalid JSON in Claude stream:', err.message)
           }
         }
-        return ''
-      } else {
-        // Try to parse as direct JSON
-        try {
-          const data = JSON.parse(chunk)
-          return data.delta?.text || ''
-        } catch (err) {
-          console.warn('Failed to parse Claude response as JSON:', err.message)
-          return ''
-        }
       }
+
+      return content
     }
     // For Mistral
     else if (provider === 'mistral-large') {
