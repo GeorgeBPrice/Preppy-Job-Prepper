@@ -826,6 +826,7 @@ export const streamChatMessage = async (
     } else {
       // In production, use our proxy with streaming
       try {
+        console.log('Production: Making streaming request to proxy')
         const response = await fetch(PROXY_API_URL, {
           method: 'POST',
           headers: {
@@ -844,35 +845,51 @@ export const streamChatMessage = async (
           throw new Error(`API error: ${errorData.message || response.statusText}`)
         }
 
+        console.log('Production: Proxy response received, checking for ReadableStream')
+
         if (!response.body) {
           throw new Error('ReadableStream not supported by your browser')
         }
 
+        console.log('Production: ReadableStream available, starting to read chunks')
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let fullText = ''
+        let chunkCount = 0
 
         try {
           while (true) {
             const { done, value } = await reader.read()
-            if (done) break
+            if (done) {
+              console.log(`Production: Stream completed after ${chunkCount} chunks`)
+              break
+            }
 
             const chunk = decoder.decode(value, { stream: true })
+            chunkCount++
+            console.debug(
+              `Production: Received chunk ${chunkCount}: ${chunk.substring(0, 100)}${chunk.length > 100 ? '...' : ''}`,
+            )
+
             const content = processStreamChunk(chunk, provider, version, customModel)
 
             if (content) {
+              console.debug(
+                `Production: Processed content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+              )
               fullText += content
               onChunk(content)
             }
           }
 
+          console.log(`Production: Streaming completed, total content length: ${fullText.length}`)
           return fullText
         } catch (err) {
-          console.error('Stream processing error:', err)
+          console.error('Production: Stream processing error:', err)
           throw new Error(`Stream processing error: ${err.message}`)
         }
       } catch (error) {
-        console.warn('Streaming error, falling back to regular request:', error)
+        console.warn('Production: Streaming error, falling back to regular request:', error)
         // Fallback to non-streaming if there's an error
         return await sendChatMessage(
           messages,
