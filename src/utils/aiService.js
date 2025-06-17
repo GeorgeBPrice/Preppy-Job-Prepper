@@ -164,28 +164,28 @@ class OllamaStreamHandler {
 
     const optimizations = {
       gemma: {
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9,
         frequency_penalty: 0.0,
         presence_penalty: 0.0,
       },
       qwen: {
-        temperature: 0.8,
+        temperature: 0.3,
         top_p: 0.9,
         repetition_penalty: 1.1,
       },
       deepseek: {
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9,
         max_tokens: 4096,
       },
       llama: {
-        temperature: 0.8,
+        temperature: 0.3,
         top_p: 0.9,
         frequency_penalty: 0.0,
       },
       mistral: {
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9,
         max_tokens: 4096,
       },
@@ -387,8 +387,8 @@ Please provide a detailed review, pointing out both strengths and areas for impr
 
     // Get model-specific optimized parameters
     const optimizedParams = ollamaHandler.getOptimizedParams(modelToUse, {
-      temperature: 0.7,
-      top_p: 0.9,
+      temperature: 0.2,
+      top_p: 0.95,
     })
 
     return {

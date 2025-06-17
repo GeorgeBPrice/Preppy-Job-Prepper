@@ -414,11 +414,17 @@ export const useAIChatStore = defineStore('aiChat', {
 
       try {
         if (this.useStreaming) {
+          // Create streaming message but don't include it in the API request
           this.startStreamingMessage()
+
+          // Filter out any empty messages before sending to API
+          const filteredMessages = messagesToSend.filter(
+            (msg) => msg.content && msg.content.trim() !== '',
+          )
 
           // Stream the message in real-time
           const fullResponse = await streamChatMessage(
-            messagesToSend,
+            filteredMessages,
             this.provider,
             this.apiKey,
             this.systemPrompt || undefined,
@@ -436,9 +442,14 @@ export const useAIChatStore = defineStore('aiChat', {
           // Finalize completed response
           this.finalizeStreamingMessage(fullResponse)
         } else {
+          // Filter out any empty messages before sending to API
+          const filteredMessages = messagesToSend.filter(
+            (msg) => msg.content && msg.content.trim() !== '',
+          )
+
           // Fall back to non-streaming approach (user can toggle this in the settings)
           const response = await sendChatMessage(
-            messagesToSend,
+            filteredMessages,
             this.provider,
             this.apiKey,
             this.systemPrompt || undefined,
