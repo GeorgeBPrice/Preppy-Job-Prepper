@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { saveToStorage, loadFromStorage } from '../utils/storage'
-import { sendChatMessage } from '../utils/aiChatService'
+import { sendChatMessage, streamChatMessage } from '../utils/aiChatService'
 
 const STORAGE_KEY = 'js_job_prepper_chat_settings'
 const CONVERSATIONS_STORAGE_KEY = 'js_job_prepper_chat_conversations'
@@ -29,21 +29,76 @@ export const useAIChatStore = defineStore('aiChat', {
     activeConversationId: 'default',
     conversationContext: '',
     termsAccepted: false,
+    streamingMessageId: null,
+    useStreaming: true,
   }),
 
   getters: {
     availableProviders() {
       return [
-        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-        { value: 'gpt-4', label: 'GPT-4 Turbo' },
-        { value: 'gpt-4o', label: 'GPT-4o' },
         { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
         { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet' },
         { value: 'claude-3-opus', label: 'Claude 3 Opus' },
+        { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+        { value: 'claude-opus-4', label: 'Claude Opus 4' },
+        { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
+        { value: 'gpt-4', label: 'GPT-4 Turbo' },
+        { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4.5', label: 'GPT-4.5' },
+        { value: 'gpt-o1', label: 'GPT-o1' },
+        { value: 'gpt-o3', label: 'GPT-o3' },
+        { value: 'gpt-o4-mini', label: 'GPT-o4 Mini' },
+        { value: 'deepseek-reasoner', label: 'DeepSeek-R1' },
+        { value: 'deepseek-r1-distill', label: 'DeepSeek R1 Distill' },
+        { value: 'grok-3', label: 'Grok 3' },
         { value: 'mistral-large', label: 'Mistral Large' },
+        { value: 'mistral-large-2', label: 'Mistral Large 2' },
+        { value: 'llama-3', label: 'Llama 3' },
+        { value: 'llama-3.1', label: 'Llama 3.1' },
+        { value: 'llama-3.2', label: 'Llama 3.2' },
         { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+        { value: 'qwen-2.5', label: 'Qwen 2.5' },
+        { value: 'cohere-command-r-plus', label: 'Cohere Command R+' },
+        { value: 'ollama', label: 'Ollama (Local)' },
         { value: 'other', label: 'Other...' },
       ]
+    },
+
+    providerEndpoints() {
+      return {
+        'gpt-4': 'https://api.openai.com/v1/chat/completions',
+        'gpt-4o': 'https://api.openai.com/v1/chat/completions',
+        'gpt-4.5': 'https://api.openai.com/v1/chat/completions',
+        'gpt-o1': 'https://api.openai.com/v1/chat/completions',
+        'gpt-o3': 'https://api.openai.com/v1/chat/completions',
+        'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+        'claude-3-5-sonnet': 'https://api.anthropic.com/v1/messages',
+        'claude-3-7-sonnet': 'https://api.anthropic.com/v1/messages',
+        'claude-3-opus': 'https://api.anthropic.com/v1/messages',
+        'claude-3-haiku': 'https://api.anthropic.com/v1/messages',
+        'claude-opus-4': 'https://api.anthropic.com/v1/messages',
+        'claude-sonnet-4': 'https://api.anthropic.com/v1/messages',
+        'gemini-1.5-pro':
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+        'gemini-2.5-pro':
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+        'gemini-2.5-flash':
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        'deepseek-reasoner': 'https://api.deepseek.com/v1/chat/completions',
+        'deepseek-r1-distill': 'https://api.deepseek.com/v1/chat/completions',
+        'grok-3': 'https://api.x.ai/v1/chat/completions',
+        'mistral-large': 'https://api.mistral.ai/v1/chat/completions',
+        'mistral-large-2': 'https://api.mistral.ai/v1/chat/completions',
+        'qwen-2.5':
+          'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+        'cohere-command-r-plus': 'https://api.cohere.ai/v1/generate',
+        'llama-3': 'https://api.together.xyz/v1/chat/completions',
+        'llama-3.1': 'https://api.together.xyz/v1/chat/completions',
+        'llama-3.2': 'https://api.together.xyz/v1/chat/completions',
+        ollama: 'http://localhost:11434/api/generate',
+      }
     },
 
     currentProviderLabel() {
@@ -94,6 +149,7 @@ export const useAIChatStore = defineStore('aiChat', {
         systemPrompt: this.systemPrompt,
         termsAccepted: this.termsAccepted,
         activeConversationId: this.activeConversationId,
+        useStreaming: this.useStreaming,
       }
 
       saveToStorage(data, STORAGE_KEY)
@@ -112,6 +168,7 @@ export const useAIChatStore = defineStore('aiChat', {
         this.systemPrompt = data.systemPrompt || ''
         this.termsAccepted = data.termsAccepted || false
         this.activeConversationId = data.activeConversationId || 'default'
+        this.useStreaming = data.useStreaming !== undefined ? data.useStreaming : true
       }
 
       // finally load conversations
@@ -149,6 +206,10 @@ export const useAIChatStore = defineStore('aiChat', {
 
     setProvider(provider) {
       this.provider = provider
+
+      if (provider === 'ollama') {
+        this.version = ''
+      }
       this.saveSettings()
     },
 
@@ -184,6 +245,11 @@ export const useAIChatStore = defineStore('aiChat', {
 
     acceptTerms() {
       this.termsAccepted = true
+      this.saveSettings()
+    },
+
+    setTermsAccepted(value) {
+      this.termsAccepted = value
       this.saveSettings()
     },
 
@@ -255,10 +321,17 @@ export const useAIChatStore = defineStore('aiChat', {
       const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
 
       if (conversation) {
-        // Add the message to the active conversation
-        conversation.messages.push({ role, content, timestamp: new Date().toISOString() })
+        // Create a message object with a unique ID
+        const messageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        const message = {
+          id: messageId,
+          role,
+          content,
+          timestamp: new Date().toISOString(),
+        }
 
-        // Update conversation timestamp
+        // Add the message to the active conversation
+        conversation.messages.push(message)
         conversation.timestamp = new Date().toISOString()
 
         // Update conversation title based on first user message if it's "New Conversation"
@@ -268,6 +341,53 @@ export const useAIChatStore = defineStore('aiChat', {
         }
 
         this.saveConversations()
+
+        return messageId
+      }
+
+      return null
+    },
+
+    // Create initial streaming message
+    startStreamingMessage() {
+      const messageId = this.addMessage('assistant', '')
+      this.streamingMessageId = messageId
+      return messageId
+    },
+
+    // Update streaming message content
+    updateStreamingMessage(content) {
+      if (!this.streamingMessageId) return
+
+      const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
+      if (!conversation) return
+
+      const message = conversation.messages.find((msg) => msg.id === this.streamingMessageId)
+      if (message) {
+        message.content += content
+        // Occasionally save if the content gets long
+        if (message.content.length % 500 === 0) {
+          this.saveConversations()
+        }
+      }
+    },
+
+    // Finalize streaming message
+    finalizeStreamingMessage(fullContent) {
+      if (!this.streamingMessageId) return
+
+      const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
+      if (!conversation) return
+
+      const message = conversation.messages.find((msg) => msg.id === this.streamingMessageId)
+      if (message) {
+        // complete content if available
+        if (fullContent) {
+          message.content = fullContent
+        }
+
+        this.saveConversations()
+        this.streamingMessageId = null
       }
     },
 
@@ -293,24 +413,53 @@ export const useAIChatStore = defineStore('aiChat', {
       this.clearError()
 
       try {
-        // Send message to AI API as configured by user in the settings tab of chat bot
-        const response = await sendChatMessage(
-          messagesToSend,
-          this.provider,
-          this.apiKey,
-          this.systemPrompt || undefined,
-          this.version,
-          this.customModel,
-          this.customEndpoint,
-          this.customHeaders,
-          topic,
-        )
+        if (this.useStreaming) {
+          this.startStreamingMessage()
 
-        // Add response to messages
-        this.addMessage('assistant', response)
+          // Stream the message in real-time
+          const fullResponse = await streamChatMessage(
+            messagesToSend,
+            this.provider,
+            this.apiKey,
+            this.systemPrompt || undefined,
+            this.version,
+            this.customModel,
+            this.customEndpoint,
+            this.customHeaders,
+            topic,
+            // Callback each chunk
+            (chunk) => {
+              this.updateStreamingMessage(chunk)
+            },
+          )
+
+          // Finalize completed response
+          this.finalizeStreamingMessage(fullResponse)
+        } else {
+          // Fall back to non-streaming approach (user can toggle this in the settings)
+          const response = await sendChatMessage(
+            messagesToSend,
+            this.provider,
+            this.apiKey,
+            this.systemPrompt || undefined,
+            this.version,
+            this.customModel,
+            this.customEndpoint,
+            this.customHeaders,
+            topic,
+          )
+
+          this.addMessage('assistant', response)
+        }
       } catch (error) {
         console.error('Failed to send message:', error)
         this.setError(error.message || 'Failed to send message')
+
+        // error message if streaming
+        if (this.streamingMessageId) {
+          this.finalizeStreamingMessage('')
+        }
+
         this.addMessage('system', `Error: ${error.message || 'Failed to get response'}`)
       } finally {
         this.isSending = false
@@ -349,6 +498,18 @@ export const useAIChatStore = defineStore('aiChat', {
       this.customHeaders = ''
       this.version = ''
       this.systemPrompt = ''
+      this.saveSettings()
+    },
+
+    // Toggle streaming mode on/off
+    toggleStreaming() {
+      this.useStreaming = !this.useStreaming
+      this.saveSettings()
+    },
+
+    // Update streaming setting
+    setStreaming(value) {
+      this.useStreaming = value
       this.saveSettings()
     },
   },

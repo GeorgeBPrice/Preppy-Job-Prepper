@@ -18,9 +18,10 @@
     <div class="settings-warning mb-3">
       <p>
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        <strong>Important:</strong> API keys are stored in your browser's localStorage only and are
-        not transmitted to our servers. By using this feature, you accept Terms-and-Conditions and
-        acknowledge that you use this functionality at your own risk.
+        <strong>Important:</strong> API keys are stored in your browser's localStorage and are used
+        to make requests to AI providers. Chat messages are routed through our proxy server for
+        security, and your API key is only used in-memory. By using this feature, you accept our
+        Terms and Conditions and acknowledge that you use this functionality at your own risk.
         <TermsAndConditions />
       </p>
       <div v-if="!aiChatStore.termsAccepted" class="mt-2">
@@ -38,6 +39,7 @@
         v-model="provider"
         class="form-select"
         @change="handleProviderChange"
+        :disabled="isTesting"
       >
         <option
           v-for="provider in aiChatStore.availableProviders"
@@ -49,8 +51,22 @@
       </select>
     </div>
 
+    <!-- Streaming toggle -->
+    <div class="mb-3 form-check">
+      <input
+        type="checkbox"
+        class="form-check-input"
+        id="streamingToggle"
+        v-model="streamingEnabled"
+        :checked="false"
+      />
+      <label class="form-check-label" for="streamingToggle">
+        Enable streaming responses <small>(WARNING: not all models stream nicely)</small>
+      </label>
+    </div>
+
     <!-- API Key -->
-    <div class="form-group mb-3">
+    <div class="form-group mb-3" v-if="provider !== 'ollama'">
       <label for="chat-api-key" class="form-label">API Key</label>
       <input
         id="chat-api-key"
@@ -61,8 +77,24 @@
       />
     </div>
 
+    <!-- Ollama Model Selection -->
+    <div class="form-group mb-3" v-if="provider === 'ollama'">
+      <label for="ollama-model" class="form-label">Ollama Model</label>
+      <input
+        id="ollama-model"
+        type="text"
+        v-model="version"
+        class="form-control"
+        placeholder="e.g. deepseek:latest, llama2:latest, mistral:latest"
+      />
+      <small class="form-text-label">
+        Enter the name of your locally installed Ollama model. You can see available models by
+        running <code>ollama list</code> in your terminal.
+      </small>
+    </div>
+
     <!-- Model Version -->
-    <div class="form-group mb-3" v-if="!aiChatStore.isCustomProvider">
+    <div class="form-group mb-3" v-if="!aiChatStore.isCustomProvider && provider !== 'ollama'">
       <label for="chat-ai-version" class="form-label">Model Version</label>
       <input id="chat-ai-version" type="text" v-model="version" class="form-control" />
     </div>
@@ -127,6 +159,20 @@
       ></textarea>
     </div>
 
+    <!-- Terms checkbox -->
+    <div class="mb-3 form-check">
+      <input
+        type="checkbox"
+        class="form-check-input"
+        id="termsCheck"
+        v-model="termsAccepted"
+        :disabled="isTesting"
+      />
+      <label class="form-check-label" for="termsCheck">
+        I accept the <a href="#" @click.prevent="showTermsModal = true">Terms and Conditions</a>
+      </label>
+    </div>
+
     <!-- Save Button -->
     <div class="form-group mb-3">
       <div class="button-group">
@@ -134,7 +180,7 @@
           @click="showConfirm('save')"
           class="btn"
           :class="saveButtonClass"
-          :disabled="isSaving || !apiKey"
+          :disabled="isSaving || (provider !== 'ollama' && !apiKey)"
         >
           <span v-if="isSaving">
             <span
@@ -200,6 +246,9 @@ const saveStatus = ref('')
 const showAlert = ref(!aiChatStore.apiKey)
 const confirmType = ref(null)
 const confirmMessage = ref('')
+const streamingEnabled = ref(true)
+const termsAccepted = ref(false)
+const isTesting = ref(false)
 
 // Computed properties
 const saveButtonClass = computed(() => {
@@ -213,13 +262,16 @@ const saveButtonClass = computed(() => {
 })
 
 const handleProviderChange = () => {
-  aiChatStore.setProvider(provider.value)
   saveStatus.value = ''
 
   if (aiChatStore.isCustomProvider) {
     customModel.value = aiChatStore.customModel || ''
     customEndpoint.value = aiChatStore.customEndpoint || ''
     customHeaders.value = aiChatStore.customHeaders || ''
+  } else if (provider.value === 'ollama') {
+    // For Ollama, use the current version, no key is required
+    version.value = aiChatStore.version || ''
+    apiKey.value = 'OLLAMA-LOCAL-NO-KEY-REQUIRED'
   }
 }
 
@@ -227,9 +279,16 @@ const saveSettings = async () => {
   aiChatStore.clearError()
   saveStatus.value = ''
 
-  // Check for API key
-  if (!apiKey.value.trim()) {
+  // Check the API key (skip for Ollama)
+  if (!apiKey.value.trim() && provider.value !== 'ollama') {
     saveStatus.value = 'Invalid API Key'
+    return
+  }
+
+  // Check the model version
+  if (!version.value.trim()) {
+    saveStatus.value = 'Model Required'
+    aiChatStore.setError('Please provide a model version')
     return
   }
 
@@ -253,8 +312,8 @@ const saveSettings = async () => {
     aiChatStore.setCustomHeaders(customHeaders.value)
   }
 
-  // Check if terms are accepted before proceeding, some legalities is a good thing
-  if (!aiChatStore.termsAccepted) {
+  // Check if terms are accepted before proceeding
+  if (!termsAccepted.value) {
     aiChatStore.setError('You must accept the Terms and Conditions to use this feature')
     saveStatus.value = 'Terms Required'
     return
@@ -263,18 +322,24 @@ const saveSettings = async () => {
   // Test the connection with the API
   isSaving.value = true
   try {
-    await testChatApiConnection(
-      provider.value,
-      apiKey.value,
-      customModel.value,
-      customEndpoint.value,
-      customHeaders.value,
-    )
+    // Skip API test for Ollama since it's local
+    if (provider.value !== 'ollama') {
+      await testChatApiConnection(
+        provider.value,
+        apiKey.value,
+        customModel.value,
+        customEndpoint.value,
+        customHeaders.value,
+      )
+    }
 
     // If successful, save to store
+    aiChatStore.setProvider(provider.value)
     aiChatStore.setApiKey(apiKey.value)
     aiChatStore.setVersion(version.value)
     aiChatStore.setSystemPrompt(systemPrompt.value)
+    aiChatStore.setStreaming(streamingEnabled.value)
+    aiChatStore.setTermsAccepted(termsAccepted.value)
     aiChatStore.saveSettings()
     saveStatus.value = 'Saved Successfully'
     showAlert.value = false
@@ -293,7 +358,6 @@ const saveSettings = async () => {
 
 const acceptTerms = () => {
   aiChatStore.acceptTerms()
-  // Reset button text after accepting terms
   if (saveStatus.value === 'Terms Required') {
     saveStatus.value = ''
   }
@@ -332,16 +396,31 @@ watch(
   () => aiChatStore.apiKey,
   (newValue) => {
     apiKey.value = newValue
-    showAlert.value = !newValue
+    showAlert.value = !newValue && provider.value !== 'ollama'
   },
 )
 
-// Watch for changes in terms acceptance state, and update
+// Watch for changes in terms acceptance state
+watch(termsAccepted, (newValue) => {
+  if (saveStatus.value === 'Terms Required' && newValue) {
+    saveStatus.value = ''
+  }
+})
+
+// Watch for changes to streaming toggle
+watch(streamingEnabled, (newValue) => {
+  aiChatStore.setStreaming(newValue)
+})
+
+// Add a watch for provider changes to handle Ollama case
 watch(
-  () => aiChatStore.termsAccepted,
-  (newValue) => {
-    if (newValue && saveStatus.value === 'Terms Required') {
-      saveStatus.value = ''
+  () => provider.value,
+  (newProvider) => {
+    if (newProvider === 'ollama') {
+      apiKey.value = 'OLLAMA-LOCAL-NO-KEY-REQUIRED'
+      showAlert.value = false
+    } else if (!apiKey.value) {
+      showAlert.value = true
     }
   },
 )
@@ -359,8 +438,8 @@ onMounted(() => {
   customEndpoint.value = aiChatStore.customEndpoint
   customHeaders.value = aiChatStore.customHeaders
   systemPrompt.value = aiChatStore.systemPrompt
-
-  // Update alert status
+  termsAccepted.value = aiChatStore.termsAccepted
+  streamingEnabled.value = aiChatStore.useStreaming
   showAlert.value = !aiChatStore.apiKey
 })
 </script>

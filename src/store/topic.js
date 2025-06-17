@@ -101,7 +101,6 @@ export const useTopicStore = defineStore('topic', {
 
     // Update the initializeTopics method to include default topics
     async initializeTopics() {
-      // First, ensure all pre-defined topics are included
       const defaultTopics = ['javascript', 'csharp', 'ai', 'typescript', 'react', 'devops']
       for (const topic of defaultTopics) {
         if (!this.topicsWithCurriculum.includes(topic)) {
@@ -109,13 +108,10 @@ export const useTopicStore = defineStore('topic', {
         }
       }
 
-      // Then check all available topics for curriculum
+      // available topics for curriculum
       for (const topic of this.availableTopics) {
         await this.checkTopicCurriculum(topic.value)
       }
-
-      // For debugging - log which topics have curriculum
-      console.log('Topics with curriculum:', this.topicsWithCurriculum)
     },
   },
 })

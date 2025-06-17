@@ -2,40 +2,291 @@ import axios from 'axios'
 
 // Base endpoints for different AI providers
 const API_ENDPOINTS = {
+  // Anthropic Models
   'claude-3-5-sonnet': 'https://api.anthropic.com/v1/messages',
   'claude-3-7-sonnet': 'https://api.anthropic.com/v1/messages',
   'claude-3-opus': 'https://api.anthropic.com/v1/messages',
   'claude-3-haiku': 'https://api.anthropic.com/v1/messages',
+  'claude-opus-4': 'https://api.anthropic.com/v1/messages',
+  'claude-sonnet-4': 'https://api.anthropic.com/v1/messages',
+
+  // OpenAI Models
   'gpt-4': 'https://api.openai.com/v1/chat/completions',
   'gpt-4o': 'https://api.openai.com/v1/chat/completions',
+  'gpt-4.5': 'https://api.openai.com/v1/chat/completions',
   'gpt-o1': 'https://api.openai.com/v1/chat/completions',
-  'deepseek-reasoner': 'https://api.deepseek.com/chat/completions',
-  'grok-3': 'https://api.grok.xai.com/v1/completions',
+  'gpt-o3': 'https://api.openai.com/v1/chat/completions',
+  'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+
+  // Google Models
+  'gemini-1.5-pro':
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+  'gemini-2.5-pro':
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+  'gemini-2.5-flash':
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+
+  // Other Models
+  'deepseek-reasoner': 'https://api.deepseek.com/v1/chat/completions',
+  'deepseek-r1-distill': 'https://api.deepseek.com/v1/chat/completions',
+  'grok-3': 'https://api.x.ai/v1/chat/completions',
   'mistral-large': 'https://api.mistral.ai/v1/chat/completions',
-  'llama-3': 'https://api.llama.ai/v1/chat/completions',
-  'gemini-1.5-pro': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro',
+  'mistral-large-2': 'https://api.mistral.ai/v1/chat/completions',
+  'qwen-2.5': 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+  'cohere-command-r-plus': 'https://api.cohere.ai/v1/generate',
+
+  // Meta Models (via Together AI)
+  'llama-3': 'https://api.together.xyz/v1/chat/completions',
+  'llama-3.1': 'https://api.together.xyz/v1/chat/completions',
+  'llama-3.2': 'https://api.together.xyz/v1/chat/completions',
+
+  // Local
+  ollama: 'http://localhost:11434/api/generate',
   other: 'custom-endpoint', // This will be overridden with the user's custom endpoint
 }
 
-// Proxy API endpoint URL
+// Check for development mode based on URL or explicit flag (dev only)
+const isDevelopment =
+  typeof window !== 'undefined' &&
+  (window.ENV === 'development' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1')
+
+// Proxy API endpoint URL - only used in production
 const PROXY_API_URL = '/api/proxy'
 
 // AI model mappings (export so we can hook into the models in the UI)
 export const MODEL_MAPPINGS = {
+  // Anthropic Models
   'claude-3-5-sonnet': 'claude-3-5-sonnet-20240620',
   'claude-3-7-sonnet': 'claude-3-7-sonnet-20250219',
   'claude-3-opus': 'claude-3-opus-20240229',
   'claude-3-haiku': 'claude-3-haiku-20240307',
+  'claude-opus-4': 'claude-3-opus-20240229',
+  'claude-sonnet-4': 'claude-3-5-sonnet-20240620',
+
+  // OpenAI Models
   'gpt-4': 'gpt-4-turbo-2024-04-09',
   'gpt-4o': 'gpt-4o-2024-05-13',
+  'gpt-4.5': 'gpt-4o-mini-2024-07-18',
   'gpt-o1': 'gpt-o1-2024-05-13',
+  'gpt-o3': 'gpt-o3-2024-07-18',
+  'gpt-o4-mini': 'gpt-o4-mini-2024-07-18',
+
+  // Google Models
+  'gemini-1.5-pro': 'gemini-1.5-pro-latest',
+  'gemini-2.5-pro': 'gemini-2.5-pro-latest',
+  'gemini-2.5-flash': 'gemini-2.5-flash-latest',
+
+  // Other Models
   'deepseek-reasoner': 'deepseek-reasoner:latest',
+  'deepseek-r1-distill': 'deepseek-r1-distill:latest',
   'grok-3': 'grok-3',
   'mistral-large': 'mistral-large-latest',
-  'llama-3': 'llama-3-70b-8192',
-  'gemini-1.5-pro': 'gemini-1.5-pro-latest',
-  other: 'custom-model', // This will be overridden with the user's custom model
+  'mistral-large-2': 'mistral-large-2-latest',
+  'qwen-2.5': 'qwen2.5-72b-instruct',
+  'cohere-command-r-plus': 'command-r-plus',
+
+  // Meta Models
+  'llama-3': 'meta-llama/Llama-3-70b-chat-hf',
+  'llama-3.1': 'meta-llama/Llama-3.1-70b-chat-hf',
+  'llama-3.2': 'meta-llama/Llama-3.2-70b-chat-hf',
+
+  // Local
+  ollama: 'llama2',
+  other: 'custom-model',
 }
+
+// Ollama Stream Handler for model-specific streaming support
+class OllamaStreamHandler {
+  constructor() {
+    // Model-specific configurations
+    this.modelConfigs = {
+      gemma: {
+        responseField: 'response',
+        requiresSpecialParsing: true,
+        markdownMode: 'tolerant',
+        chunkDelimiter: '\n',
+        filterMetadata: false,
+      },
+      qwen: {
+        responseField: 'response',
+        requiresSpecialParsing: false,
+        markdownMode: 'standard',
+        chunkDelimiter: '\n',
+        filterMetadata: true,
+        metadataFields: ['model', 'createdat', 'done'],
+      },
+      deepseek: {
+        responseField: 'response',
+        requiresSpecialParsing: true,
+        markdownMode: 'code-aware',
+        chunkDelimiter: '\n',
+        filterMetadata: false,
+      },
+      llama: {
+        responseField: 'response',
+        requiresSpecialParsing: false,
+        markdownMode: 'standard',
+        chunkDelimiter: '\n',
+        filterMetadata: false,
+      },
+      mistral: {
+        responseField: 'response',
+        requiresSpecialParsing: false,
+        markdownMode: 'standard',
+        chunkDelimiter: '\n',
+        filterMetadata: false,
+      },
+    }
+  }
+
+  // Detect model type from model name
+  detectModelType(modelName) {
+    const lowercaseName = modelName.toLowerCase()
+    if (lowercaseName.includes('gemma')) return 'gemma'
+    if (lowercaseName.includes('qwen')) return 'qwen'
+    if (lowercaseName.includes('deepseek')) return 'deepseek'
+    if (lowercaseName.includes('llama')) return 'llama'
+    if (lowercaseName.includes('mistral')) return 'mistral'
+    return 'default'
+  }
+
+  // Get configuration for the detected model
+  getModelConfig(modelName) {
+    const modelType = this.detectModelType(modelName)
+    return this.modelConfigs[modelType] || this.modelConfigs['llama']
+  }
+
+  // Get optimized parameters for different models
+  getOptimizedParams(modelName, baseParams = {}) {
+    const modelType = this.detectModelType(modelName)
+
+    const optimizations = {
+      gemma: {
+        temperature: 0.7,
+        top_p: 0.9,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+      },
+      qwen: {
+        temperature: 0.8,
+        top_p: 0.9,
+        repetition_penalty: 1.1,
+      },
+      deepseek: {
+        temperature: 0.7,
+        top_p: 0.9,
+        max_tokens: 4096,
+      },
+      llama: {
+        temperature: 0.8,
+        top_p: 0.9,
+        frequency_penalty: 0.0,
+      },
+      mistral: {
+        temperature: 0.7,
+        top_p: 0.9,
+        max_tokens: 4096,
+      },
+    }
+
+    return {
+      ...baseParams,
+      ...(optimizations[modelType] || optimizations['llama']),
+    }
+  }
+
+  // Process individual chunks based on model configuration
+  processChunk(chunk, config, onUpdate) {
+    try {
+      if (chunk.startsWith('data: ')) {
+        chunk = chunk.slice(6)
+      }
+
+      if (chunk === '[DONE]' || chunk === 'data: [DONE]') {
+        return
+      }
+
+      let parsed
+      try {
+        parsed = JSON.parse(chunk)
+      } catch {
+        if (config.filterMetadata) {
+          const responseMatch = chunk.match(/"response":"([^"]*)"/)
+          if (responseMatch) {
+            onUpdate(responseMatch[1])
+            return
+          }
+        }
+        console.warn('Invalid JSON chunk, treating as raw text:', chunk)
+        onUpdate(chunk)
+        return
+      }
+
+      let textDelta = ''
+
+      if (config.filterMetadata && config.metadataFields) {
+        if (parsed[config.responseField]) {
+          textDelta = parsed[config.responseField]
+        }
+      } else {
+        if (parsed[config.responseField]) {
+          textDelta = parsed[config.responseField]
+        } else if (parsed.choices && parsed.choices[0]) {
+          textDelta = parsed.choices[0].delta?.content || parsed.choices[0].text || ''
+        } else if (parsed.content) {
+          textDelta = parsed.content
+        } else if (parsed.text) {
+          textDelta = parsed.text
+        } else if (parsed.message && parsed.message.content) {
+          textDelta = parsed.message.content
+        }
+      }
+
+      if (config.requiresSpecialParsing) {
+        textDelta = this.applySpecialParsing(textDelta, config)
+      }
+
+      if (textDelta && onUpdate) {
+        onUpdate(textDelta)
+      }
+    } catch (error) {
+      console.error('Error processing chunk:', error, chunk)
+    }
+  }
+
+  // Apply special parsing for certain models
+  applySpecialParsing(text, config) {
+    switch (config.markdownMode) {
+      case 'code-aware':
+        return this.fixCodeBlockParsing(text)
+      case 'tolerant':
+        return this.applyTolerantParsing(text)
+      default:
+        return text
+    }
+  }
+
+  // Fix code block parsing issues
+  fixCodeBlockParsing(text) {
+    if (text.includes('```') && !text.match(/```[\s\S]*?```/)) {
+      text = text.replace(/```([^`]*?)$/, '```$1\n')
+    }
+    return text
+  }
+
+  // Apply tolerant parsing for models with markdown issues
+  applyTolerantParsing(text) {
+    text = text.replace(/\*\*([^*]+)$/, '**$1**')
+    text = text.replace(/\*([^*]+)$/, '*$1*')
+    text = text.replace(/```([^`]+)$/, '```$1\n```')
+    return text
+  }
+}
+
+// Create a singleton instance
+const ollamaHandler = new OllamaStreamHandler()
 
 /**
  * Format the message for grade request based on provider
@@ -126,6 +377,28 @@ Please provide a detailed review, pointing out both strengths and areas for impr
     }
   }
 
+  // Format for Ollama
+  else if (provider === 'ollama') {
+    // Convert to Ollama format
+    let prompt = `System: You are a helpful JavaScript expert who provides clear, accurate code reviews and feedback.\n\nUser: ${basePrompt}`
+
+    // For Ollama, use the version field as the model name
+    const modelToUse = version || MODEL_MAPPINGS.ollama
+
+    // Get model-specific optimized parameters
+    const optimizedParams = ollamaHandler.getOptimizedParams(modelToUse, {
+      temperature: 0.7,
+      top_p: 0.9,
+    })
+
+    return {
+      model: modelToUse,
+      prompt: prompt.trim(),
+      stream: false,
+      options: optimizedParams,
+    }
+  }
+
   // Format for DeepSeek
   else if (provider === 'deepseek-reasoner') {
     return {
@@ -202,6 +475,11 @@ const getHeaders = (provider, apiKey, customHeaders) => {
       'Content-Type': 'application/json',
       'x-goog-api-key': apiKey,
     }
+  } else if (provider === 'ollama') {
+    // Ollama doesn't require authentication
+    return {
+      'Content-Type': 'application/json',
+    }
   } else {
     // Generic headers for other providers
     return {
@@ -223,6 +501,9 @@ const extractResponseText = (provider, data) => {
     return data.choices[0].message.content
   } else if (provider === 'gemini-1.5-pro') {
     return data.candidates[0].content.parts[0].text
+  } else if (provider === 'ollama') {
+    // Ollama returns objects with a 'response' field
+    return data.response || data.message?.content || ''
   } else if (provider === 'other') {
     // Try to extract from common response formats
     try {
@@ -300,12 +581,18 @@ export const submitCodeForGrading = async (
   const headers = getHeaders(provider, apiKey, customHeaders)
 
   try {
-    // Use our proxy endpoint instead of calling the API directly
-    const response = await axios.post(PROXY_API_URL, {
-      target: endpoint,
-      data: requestData,
-      headers: headers,
-    })
+    let response
+
+    if (isDevelopment) {
+      console.log('Using direct API call in development mode')
+      response = await axios.post(endpoint, requestData, { headers })
+    } else {
+      response = await axios.post(PROXY_API_URL, {
+        target: endpoint,
+        data: requestData,
+        headers: headers,
+      })
+    }
 
     const responseText = extractResponseText(provider, response.data)
     return responseText
@@ -325,7 +612,16 @@ export const submitCodeForGrading = async (
  */
 export const validateApiKey = (provider, apiKey) => {
   if (!apiKey || apiKey.trim() === '') {
+    // For Ollama, we don't need an API key
+    if (provider === 'ollama') {
+      return true
+    }
     return false
+  }
+
+  // For Ollama, accept the mock key
+  if (provider === 'ollama' && apiKey === 'OLLAMA-LOCAL-NO-KEY-REQUIRED') {
+    return true
   }
 
   // For custom provider, just ensure the key is not empty
@@ -367,7 +663,13 @@ export const testApiConnection = async (
   customModel = '',
   customEndpoint = '',
   customHeaders = '',
+  version = '',
 ) => {
+  // For Ollama, skip validation and return true
+  if (provider === 'ollama') {
+    return true
+  }
+
   if (!validateApiKey(provider, apiKey)) {
     throw new Error('Invalid API key format')
   }
@@ -387,7 +689,8 @@ export const testApiConnection = async (
   let requestData
 
   // Get the actual model to use
-  const modelToUse = provider === 'other' && customModel ? customModel : MODEL_MAPPINGS[provider]
+  const modelToUse =
+    provider === 'other' ? customModel : provider === 'ollama' ? version : MODEL_MAPPINGS[provider]
 
   if (provider.startsWith('claude')) {
     requestData = {
@@ -405,6 +708,12 @@ export const testApiConnection = async (
         },
       ],
     }
+  } else if (provider === 'ollama') {
+    requestData = {
+      model: modelToUse,
+      prompt: `System: You are a helpful assistant.\n\nUser: ${testPrompt}`,
+      stream: false,
+    }
   } else {
     requestData = {
       model: modelToUse,
@@ -416,12 +725,20 @@ export const testApiConnection = async (
   const headers = getHeaders(provider, apiKey, customHeaders)
 
   try {
-    // Use our proxy endpoint instead of calling the API directly
-    const response = await axios.post(PROXY_API_URL, {
-      target: endpoint,
-      data: requestData,
-      headers: headers,
-    })
+    let response
+
+    if (isDevelopment) {
+      // Direct API call in development
+      console.log('Testing API connection directly in development mode')
+      response = await axios.post(endpoint, requestData, { headers })
+    } else {
+      // Use proxy in production
+      response = await axios.post(PROXY_API_URL, {
+        target: endpoint,
+        data: requestData,
+        headers: headers,
+      })
+    }
 
     return !!response.data // Return true if we got any response
   } catch (error) {
