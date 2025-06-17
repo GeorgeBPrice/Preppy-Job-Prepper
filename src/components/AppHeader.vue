@@ -4,7 +4,6 @@
       <div class="header-content">
         <!-- Left section: Logo, menu toggle and title -->
         <div class="header-left">
-          <!-- Mobile menu toggle button -->
           <div class="mobile-menu-toggle d-md-none" @click="toggleMobileMenu">
             <i class="bi" :class="mobileMenuOpen ? 'bi-x-lg' : 'bi-list'"></i>
           </div>
@@ -65,7 +64,6 @@
 
         <!-- Right section: Theme toggle, Progress, Continue, and mobile search icon -->
         <div class="header-right">
-          <!-- Mobile Topic Selector -->
           <div class="mobile-topic-selector d-md-none">
             <select
               v-model="selectedTopic"
@@ -124,7 +122,7 @@ const topicStore = useTopicStore()
 const mobileMenuOpen = ref(false)
 const searchExpanded = ref(false)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
-const selectedTopic = ref('javascript') // Added ref for topic selection
+const selectedTopic = ref('javascript') // We default to javascript for now, when home page is loaded
 
 // Define props to receive mobile menu state from App.vue
 const props = defineProps({
@@ -142,7 +140,15 @@ watch(
   },
 )
 
-// Check if there's any user progress to determine if we should show the continue button
+// Watch for topic changes from the store
+watch(
+  () => topicStore.currentTopic,
+  (newTopic) => {
+    selectedTopic.value = newTopic
+  },
+)
+
+// Conditionally show the continue button
 const hasProgress = computed(() => {
   return (
     progressStore.currentLesson &&
@@ -152,7 +158,6 @@ const hasProgress = computed(() => {
 })
 
 onMounted(() => {
-  // set progress state
   if (!progressStore.isLoaded) {
     progressStore.loadProgress()
   }
@@ -187,10 +192,8 @@ const handleResize = () => {
 const changeTopic = () => {
   // Only take action if there's actually a change
   if (selectedTopic.value !== topicStore.currentTopic) {
-    // Set the new topic
     topicStore.setTopic(selectedTopic.value)
 
-    // Always navigate to home page when switching topics
     router.push('/')
   }
 }
@@ -216,7 +219,6 @@ const goToCurrentProgress = async () => {
         })
       }
     } else {
-      // If all items are completed, navigate to home
       router.push('/')
     }
   } catch (error) {

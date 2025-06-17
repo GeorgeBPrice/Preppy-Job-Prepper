@@ -5,13 +5,61 @@
 
 import Prism from 'prismjs'
 
+// State to track incomplete markdown elements during LLM response streaming
+let streamingState = {
+  codeBlock: {
+    isOpen: false,
+    language: '',
+    content: '',
+  },
+  bold: {
+    isOpen: false,
+    content: '',
+  },
+  italic: {
+    isOpen: false,
+    content: '',
+  },
+  list: {
+    isOpen: false,
+    type: '', // 'ul' or 'ol'
+    content: '',
+  },
+}
+
+// Reset streaming state
+export const resetStreamingState = () => {
+  streamingState = {
+    codeBlock: { isOpen: false, language: '', content: '' },
+    bold: { isOpen: false, content: '' },
+    italic: { isOpen: false, content: '' },
+    list: { isOpen: false, type: '', content: '' },
+  }
+}
+
 /**
- * Format markdown with proper styling
+ * Format markdown with proper styling, handling streaming content
  */
-export const formatMarkdown = (markdown) => {
+export const formatMarkdown = (markdown, isStreaming = false) => {
   if (!markdown) return ''
 
   let formatted = markdown
+
+  // If not streaming, process normally
+  if (!isStreaming) {
+    resetStreamingState()
+    return processCompleteMarkdown(formatted)
+  }
+
+  // For streaming content, use incremental processing
+  return processStreamingMarkdown(formatted)
+}
+
+/**
+ * Process complete markdown content (non-streaming)
+ */
+function processCompleteMarkdown(text) {
+  let formatted = text
 
   // Process code blocks first (to avoid processing markdown inside code blocks)
   formatted = formatCodeBlocks(formatted)
@@ -47,6 +95,123 @@ export const formatMarkdown = (markdown) => {
   formatted = formatParagraphs(formatted)
 
   return formatted
+}
+
+/**
+ * Process streaming LLM response state management
+ */
+function processStreamingMarkdown(text) {
+  let formatted = text
+
+  // Handle code blocks first
+  formatted = handleStreamingCodeBlocks(formatted)
+
+  // Handle emphasis (bold/italic)
+  formatted = handleStreamingEmphasis(formatted)
+
+  // Handle lists
+  formatted = handleStreamingLists(formatted)
+
+  // Process other elements that don't need state
+  formatted = formatHeaders(formatted)
+  formatted = formatInlineCode(formatted)
+  formatted = formatLinks(formatted)
+  formatted = formatParagraphs(formatted)
+
+  return formatted
+}
+
+/**
+ * Handle code blocks during streaming,
+ * (as the LLM response is streamed in chunks, we need to handle the code blocks as they come in)
+ */
+function handleStreamingCodeBlocks(text) {
+  // Check for code block markers
+  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)(?:```|$)/g
+  let match
+  let result = text
+
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const [fullMatch, language, content] = match
+
+    if (fullMatch.endsWith('```')) {
+      // Complete code block
+      const formattedCode = formatCodeBlock(language, content)
+      result = result.replace(fullMatch, formattedCode)
+      streamingState.codeBlock.isOpen = false
+    } else {
+      // Incomplete code block
+      streamingState.codeBlock.isOpen = true
+      streamingState.codeBlock.language = language
+      streamingState.codeBlock.content = content
+      // Show as plain text until complete
+      result = result.replace(fullMatch, `<pre class="streaming-code">${escapeHtml(content)}</pre>`)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Handle emphasis (bold/italic) during streaming
+ */
+function handleStreamingEmphasis(text) {
+  let result = text
+
+  // Handle bold
+  const boldRegex = /\*\*([^*]*)(?:\*\*|$)/g
+  result = result.replace(boldRegex, (match, content) => {
+    if (match.endsWith('**')) {
+      return `<strong class="md-strong">${content}</strong>`
+    }
+    streamingState.bold.isOpen = true
+    streamingState.bold.content = content
+    return `<span class="streaming-bold">${content}</span>`
+  })
+
+  // Handle italic
+  const italicRegex = /\*([^*]*)(?:\*|$)/g
+  result = result.replace(italicRegex, (match, content) => {
+    if (match.endsWith('*')) {
+      return `<em class="md-em">${content}</em>`
+    }
+    streamingState.italic.isOpen = true
+    streamingState.italic.content = content
+    return `<span class="streaming-italic">${content}</span>`
+  })
+
+  return result
+}
+
+/**
+ * Handle lists during streaming
+ */
+function handleStreamingLists(text) {
+  let result = text
+
+  // Handle unordered lists
+  const ulRegex = /(?:^|\n)((?:- .+?\n)+)(?:\n|$)/g
+  result = result.replace(ulRegex, (match) => {
+    const items = match
+      .trim()
+      .split('\n')
+      .map((item) => `<li class="md-li">${item.substring(2)}</li>`)
+      .join('')
+    return `<ul class="md-ul">${items}</ul>`
+  })
+
+  // Handle ordered lists
+  const olRegex = /(?:^|\n)((?:\d+\. .+?\n)+)(?:\n|$)/g
+  result = result.replace(olRegex, (match) => {
+    const items = match
+      .trim()
+      .split('\n')
+      .map((item) => `<li class="md-li">${item.replace(/^\d+\.\s*/, '')}</li>`)
+      .join('')
+    return `<ol class="md-ol">${items}</ol>`
+  })
+
+  return result
 }
 
 /**
@@ -123,22 +288,36 @@ function formatGraphics(text) {
 }
 
 /**
- * Format code blocks with syntax highlighting
+ * Map some common language aliases (for code blocks)
+ */
+const languageMap = {
+  js: 'javascript',
+  jsx: 'jsx',
+  tsx: 'typescript',
+  java: 'java',
+  php: 'php',
+  sh: 'bash',
+  yaml: 'yaml',
+  ts: 'typescript',
+  py: 'python',
+  rb: 'ruby',
+  sql: 'sql',
+  noSql: 'sql',
+  csharp: 'cs',
+  'c#': 'cs',
+  css: 'css',
+  html: 'markup',
+  xml: 'xml',
+  json: 'json',
+}
+
+/**
+ * Format code blocks with syntax highlighting (FOR NON-STREAMING)
  */
 const formatCodeBlocks = (text) => {
   // Improved regex to handle various formats of code blocks with more flexibility
   return text.replace(/```([\w-]*)\s*([\s\S]+?)\s*```/g, (match, language, code) => {
     language = language.trim().toLowerCase()
-
-    // Map some common language aliases
-    const languageMap = {
-      js: 'javascript',
-      ts: 'typescript',
-      py: 'python',
-      rb: 'ruby',
-      csharp: 'cs',
-      'c#': 'cs',
-    }
 
     if (languageMap[language]) {
       language = languageMap[language]
@@ -343,4 +522,28 @@ const escapeHtml = (unsafe) => {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
+}
+
+/**
+ * Format a complete code block with syntax highlighting (FOR STREAMING)
+ */
+function formatCodeBlock(language, code) {
+  language = language.trim().toLowerCase()
+
+  if (languageMap[language]) {
+    language = languageMap[language]
+  }
+
+  if (!language) language = 'javascript'
+
+  try {
+    if (Prism.languages[language]) {
+      const highlighted = Prism.highlight(code.trim(), Prism.languages[language], language)
+      return `<pre class="language-${language} scrollable-code"><code class="language-${language}">${highlighted}</code></pre>`
+    }
+  } catch (e) {
+    console.warn('Error highlighting code:', e)
+  }
+
+  return `<pre class="scrollable-code"><code>${escapeHtml(code.trim())}</code></pre>`
 }

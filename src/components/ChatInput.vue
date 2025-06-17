@@ -111,6 +111,7 @@ watch(
 .message-textarea:focus {
   box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
   border-color: var(--primary-color);
+  color: var(--text-color);
 }
 
 .message-textarea::placeholder {
@@ -118,11 +119,20 @@ watch(
   opacity: 0.6;
 }
 
+/* AI Chatbot specific, style fixes for dark mode */
+:root[data-theme='dark'] .message-textarea {
+  color: #ffffff;
+}
+
+:root[data-theme='dark'] .message-textarea:focus {
+  color: #ffffff;
+}
+
 .send-button {
   position: absolute;
   bottom: 8px;
   right: 10px;
-  background-color: var(--primary-color);
+  background-color: #36bf8d;
   color: white;
   border: none;
   border-radius: 50%;

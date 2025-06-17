@@ -11,14 +11,6 @@
         placeholder="Paste your code here..."
       ></textarea>
     </div>
-    <div class="editor-preview" v-if="code">
-      <h5>Preview:</h5>
-      <div class="preview-container">
-        <pre
-          class="limited-height-preview"
-        ><code class="language-javascript" v-html="highlightedCode"></code></pre>
-      </div>
-    </div>
     <div class="editor-footer">
       <button @click="saveCode" class="btn btn-primary">Save</button>
       <button
@@ -82,15 +74,7 @@ onMounted(() => {
   if (props.isChallenge) {
     const savedResponse = aiStore.getSavedResponse(props.sectionId)
     if (savedResponse) {
-      // Restore saved response
       aiStore.setLastResponse(savedResponse.response)
-
-      // If there's a code sample that doesn't match the current code, we could
-      // show a notice to the user asking if they want to restore it
-      if (savedResponse.code && code.value !== savedResponse.code && !code.value) {
-        // This is optional - you could add a UI element to restore the code
-        // For now, let's just keep their current code
-      }
     }
   }
 })
@@ -106,22 +90,7 @@ watch(code, () => {
   highlightCode()
 })
 
-// Function to escape HTML in the code
-const escapeHtml = (unsafe) => {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
-
-// Computed property for highlighted code
-const highlightedCode = computed(() => {
-  return escapeHtml(code.value)
-})
-
-// Function to apply Prism highlighting
+// Apply Prism highlighting
 const highlightCode = () => {
   setTimeout(() => {
     Prism.highlightAll()
@@ -148,7 +117,6 @@ const saveCode = () => {
 }
 
 const submitAndGradeCode = async () => {
-  // First save the code
   const savedCode = saveCode()
 
   // Mark as completed
@@ -167,7 +135,7 @@ const submitAndGradeCode = async () => {
     aiStore.setLoading(true)
 
     try {
-      // Get the current section or lesson details
+      // Get the current section or lesson details (Context for the LLM)
       let sectionTitle, challengeDescription
 
       if (props.isChallenge) {
@@ -179,7 +147,6 @@ const submitAndGradeCode = async () => {
           challengeDescription = section.challenge?.description || 'Complete the coding challenge'
         }
       } else {
-        // Handle lesson grading if needed in the future
         const sectionIndex = props.sectionId - 1
         const lessonIndex = props.lessonId - 1
         const section = window.curriculum?.[sectionIndex]
@@ -191,7 +158,7 @@ const submitAndGradeCode = async () => {
         }
       }
 
-      // Submit the code for grading
+      // Submit the code for grading (prompt context for the LLM)
       const response = await submitCodeForGrading(
         aiStore.provider,
         aiStore.apiKey,
@@ -204,7 +171,7 @@ const submitAndGradeCode = async () => {
         aiStore.customHeaders,
       )
 
-      // Store the AI response
+      // Set the AI response
       aiStore.setLastResponse(response)
 
       // Save the response to localStorage
@@ -271,12 +238,6 @@ const resetCode = () => {
   background-color: #171717;
   color: var(--text-light);
   transition: all var(--transition-speed) ease;
-}
-
-.editor-preview {
-  padding: 10px;
-  border-top: 1px solid var(--border-color);
-  background-color: var(--bg-sidebar);
 }
 
 .preview-container {

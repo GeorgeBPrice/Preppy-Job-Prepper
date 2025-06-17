@@ -116,11 +116,17 @@
 
       <!-- Show message if no curriculum is available -->
       <div
-        v-if="!loading && topicStore.hasCurriculum && currentCurriculum.length === 0"
+        v-if="
+          !loading && topicStore.hasCurriculum && currentCurriculum.length === 0 && !isCollapsed
+        "
         class="no-curriculum-message"
       >
         <p class="text-center">
-          No curriculum is available for {{ topicStore.currentTopicName }} at this time.
+          You can take the <strong>Minicourse Recapper</strong>, or try
+          <strong>Prep Interview Questions</strong>.
+        </p>
+        <p style="font-style: italic">
+          The full {{ topicStore.currentTopicName }} course is unavailable.
         </p>
       </div>
 
@@ -129,12 +135,15 @@
       </div>
     </div>
 
+    <!-- Sidebar resizer draggable edge -->
+    <div class="sidebar-resize-handle" @mousedown="startResize" @touchstart="startResize"></div>
+
     <div class="section-bottom"></div>
   </aside>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useProgressStore } from '../store/progress'
 import { useTopicStore } from '../store/topic'
 import { useRoute } from 'vue-router'
@@ -158,6 +167,59 @@ const sectionRefs = ref({})
 const currentCurriculum = ref([])
 const loading = ref(true)
 const sectionCompletionMap = ref({})
+
+// Resize handling
+const isResizing = ref(false)
+const startX = ref(0)
+const startWidth = ref(0)
+const minWidth = 60
+const maxWidth = 400
+
+const startResize = (e) => {
+  isResizing.value = true
+  startX.value = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX
+  startWidth.value = props.isCollapsed ? minWidth : 300
+
+  // Tablet support, event listeners for mouse touch
+  if (e.type === 'mousedown') {
+    document.addEventListener('mousemove', handleResize)
+    document.addEventListener('mouseup', stopResize)
+  } else {
+    document.addEventListener('touchmove', handleResize)
+    document.addEventListener('touchend', stopResize)
+  }
+}
+
+const handleResize = (e) => {
+  if (!isResizing.value) return
+
+  const currentX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX
+  const diff = currentX - startX.value
+  const newWidth = Math.min(Math.max(startWidth.value + diff, minWidth), maxWidth)
+
+  // Snapping collapse/expand by defined break widths
+  if (newWidth <= minWidth + 20) {
+    emit('toggle')
+    stopResize()
+  } else if (newWidth >= 300 - 20) {
+    if (props.isCollapsed) {
+      emit('toggle')
+    }
+  }
+}
+
+const stopResize = () => {
+  isResizing.value = false
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.removeEventListener('touchmove', handleResize)
+  document.removeEventListener('touchend', stopResize)
+}
+
+// Clean up
+onUnmounted(() => {
+  stopResize()
+})
 
 // Load the curriculum for the current topic
 const loadCurriculum = async () => {
@@ -192,10 +254,8 @@ watch(
       // We only want the currently toggled menu section to be open
       openSections.value = [currentSectionId - 1]
 
-      // Wait for DOM update after changing openSections
       await nextTick()
 
-      // Scroll to the active section
       scrollToSection(currentSectionId - 1)
     }
   },
@@ -238,16 +298,15 @@ onMounted(async () => {
 })
 
 const handleSectionClick = (sectionIndex) => {
-  // Don't close mobile menu when clicking on expandable sections
-  // Only if it's a direct navigation (non-numeric sectionIndex like '/' or other paths)
+  // Prevent closing mobile menu when clicking on expandable sections
   if (window.innerWidth < 768 && typeof sectionIndex !== 'number') {
     emit('close')
   }
 
-  // If sidebar is collapsed, expand it first then open the section
+  // Handle how the sidebar expands when clicking on a section (if collapsed)
   if (props.isCollapsed) {
     const menuLinkURL = sectionIndex && sectionIndex.RouterLink
-    // only the lessons sections exand the menu, as they have sub menu items
+    // We only want to expand the menu if the section is a lesson or challenge
     if (
       menuLinkURL !== '/minicourse-recapper' ||
       menuLinkURL !== '/interview-questions' ||
@@ -256,7 +315,7 @@ const handleSectionClick = (sectionIndex) => {
       // toggles the sidebar to expand
       emit('toggle')
 
-      // then expand the menu sub section
+      // then expand to the sections 'lesson' or 'challenge' sub section item on the menu
       nextTick(() => {
         openSections.value = [sectionIndex]
         nextTick(() => {
@@ -378,6 +437,7 @@ const closeMobileMenuOnNavigation = () => {
   flex-direction: column;
   z-index: 1000;
   box-shadow: var(--shadow-sm);
+  user-select: none;
 }
 
 .home-nav-link {
@@ -407,6 +467,7 @@ const closeMobileMenuOnNavigation = () => {
 
 .sidebar.collapsed {
   width: 60px;
+  transition: width 0.3s ease;
 }
 
 .menu-label label {
@@ -730,7 +791,29 @@ a.router-link-active.router-link-exact-active.interview-nav-link {
 
   .sidebar-mobile-open .sidebar {
     transform: translateX(0);
-    width: 300px; /* Force full width on mobile */
+    width: 300px;
   }
+
+  .sidebar-resize-handle {
+    display: none;
+  }
+}
+
+/*  Resize handle, draggable edge */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+  z-index: 1001;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background-color: var(--primary-color);
 }
 </style>

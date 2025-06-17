@@ -99,7 +99,7 @@
         This curriculum is specifically designed to help you succeed in interviews for:
       </p>
       <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-4 mb-3">
           <div class="job-card">
             <div class="job-icon">
               <i class="bi bi-globe"></i>
@@ -108,7 +108,7 @@
             <p>Master DOM manipulation, event handling, and modern frameworks.</p>
           </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4 mb-3">
           <div class="job-card">
             <div class="job-icon">
               <i class="bi bi-stack"></i>
@@ -117,7 +117,7 @@
             <p>Balance client-side expertise with server-side knowledge.</p>
           </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4 mb-3">
           <div class="job-card">
             <div class="job-icon">
               <i class="bi bi-code-square"></i>
@@ -293,8 +293,6 @@ onMounted(async () => {
   await loadCurriculum()
   await calculateProgress()
   await updateSectionCompletionMap()
-
-  console.log('Available topics with curriculum:', topicStore.topicsWithCurriculum)
 })
 
 // Watch for topic changes to reload the curriculum

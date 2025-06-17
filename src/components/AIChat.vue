@@ -129,11 +129,10 @@
             <div v-if="!aiChatStore.apiKey" class="api-key-warning">
               <i class="bi bi-exclamation-triangle-fill me-2"></i>
               <span
-                >You need to
+                >You need to configure an API key in settings to get started.
                 <button @click="showSettings = true" class="btn-link">
-                  configure an API key <i class="bi bi-gear"></i>
+                  <i class="bi bi-gear"></i> Configure Settings
                 </button>
-                in settings to get started
               </span>
             </div>
           </div>
@@ -147,8 +146,8 @@
             />
           </template>
 
-          <!-- Chat Message Loading Indicator -->
-          <div v-if="aiChatStore.isSending" class="typing-indicator">
+          <!-- Chat Message Loading Indicator (only show for non-streaming) -->
+          <div v-if="aiChatStore.isSending && !aiChatStore.useStreaming" class="typing-indicator">
             <div class="dot"></div>
             <div class="dot"></div>
             <div class="dot"></div>
@@ -281,11 +280,11 @@ const cancelConfirmDialog = () => {
   actionData.value = null
 }
 
-// Send a message to the AI
+// Send userss message to the AI
 const sendMessage = async (content) => {
   if (!content || !aiChatStore.apiKey) return
 
-  // Include the current topic in the conversation context
+  // Include the current topic in the conversation context (Context for the LLM)
   if (aiChatStore.conversationContext) {
     aiChatStore.conversationContext += `\nCurrent topic: ${currentTopicName.value}`
   } else {
@@ -294,12 +293,12 @@ const sendMessage = async (content) => {
 
   await aiChatStore.sendMessage(content, currentTopicName.value)
 
-  // Scroll to bottom after sending
+  // keep the chat scrolled to the bottom.
   await nextTick()
   scrollToBottom()
 }
 
-// Scroll to the bottom of messages
+// We could make this a config option for users to toggle
 const scrollToBottom = () => {
   if (messagesContainer.value) {
     const container = messagesContainer.value
@@ -317,7 +316,22 @@ watch(
   },
 )
 
-// Handle clicks outside the dropdown to close it
+// Watch for streaming message content changes
+watch(
+  () => {
+    const streamingMessage = aiChatStore.messages.find(
+      (msg) => msg.id === aiChatStore.streamingMessageId,
+    )
+    return streamingMessage?.content
+  },
+  () => {
+    nextTick(() => {
+      scrollToBottom()
+    })
+  },
+)
+
+// Handle clicks outside element, close it
 const handleClickOutside = (event) => {
   const dropdown = document.querySelector('.conversations-dropdown')
   if (dropdown && !dropdown.contains(event.target) && dropdownOpen.value) {
@@ -332,7 +346,6 @@ const handleResize = () => {
 
 // Set conversation context based on page content
 const setContextFromPage = () => {
-  // Find the section title and topic if available
   const sectionTitle = document.querySelector('.section-title, .challenge-title')
   const lessonTitle = document.querySelector('.lesson-title')
 
@@ -346,10 +359,9 @@ const setContextFromPage = () => {
     context += `Lesson: ${lessonTitle.textContent.trim()}\n`
   }
 
-  // Try to get lesson content
+  // Get trimmed lesson content (Context for the LLM)
   const lessonContent = document.querySelector('.lesson-content, .challenge-description')
   if (lessonContent) {
-    // Limit content length
     let contentText = lessonContent.textContent.trim()
     if (contentText.length > 500) {
       contentText = contentText.substring(0, 500) + '...'
@@ -367,11 +379,7 @@ onMounted(() => {
   if (!aiChatStore.isLoaded) {
     aiChatStore.loadSettings()
   }
-
-  // Add resize listener
   window.addEventListener('resize', handleResize)
-
-  // Add click event listener to close dropdown when clicking outside
   document.addEventListener('click', handleClickOutside)
 
   // Set initial context
@@ -381,9 +389,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // Remove resize listener when component is unmounted
+  // Cleanup
   window.removeEventListener('resize', handleResize)
-  // Remove click outside listener
   document.removeEventListener('click', handleClickOutside)
 })
 </script>

@@ -69,9 +69,10 @@
         <div class="ai-config-warning">
           <p>
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <strong>Important:</strong> API keys and settings are stored in your browser's
-            localStorage only and are transmitted to the Vercel server hosting this webiste. By
-            using this feature, you accept Terms-and-Conditions and acknowledge that you use this
+            <strong>Important:</strong> API keys are stored in your browser's localStorage and are
+            used to make requests to AI providers. Lesson grading requests are routed through our
+            proxy server for security, and your API key is only used in-memory. By using this
+            feature, you accept our Terms and Conditions and acknowledge that you use this
             functionality at your own risk.
             <TermsAndConditions />
           </p>
@@ -140,7 +141,7 @@
             />
           </div>
 
-          <div class="config-item api-key-input">
+          <div class="config-item api-key-input" v-if="aiStore.provider !== 'ollama'">
             <label for="api-key" class="form-label">API Key</label>
             <input
               id="api-key"
@@ -157,7 +158,7 @@
               @click="saveAIConfig"
               class="btn"
               :class="configButtonClass"
-              :disabled="!apiKey"
+              :disabled="aiStore.provider !== 'ollama' && !apiKey"
             >
               <span v-if="isTestingConnection">
                 <span
@@ -404,6 +405,10 @@ const getSavedProviderLabel = (providerValue) => {
 const loadContent = async () => {
   loading.value = true
 
+  // Clear any previous AI response when loading a new section
+  aiStore.resetLastResponse()
+  savedResponse.value = null
+
   await loadCurriculum()
   await loadSection()
 
@@ -420,12 +425,17 @@ const checkCompletion = () => {
 }
 
 const loadSavedResponse = () => {
-  // Load any previously saved response for this section
-  savedResponse.value = aiStore.getSavedResponse(sectionId.value)
+  // Clear any previous response first
+  aiStore.resetLastResponse()
+  savedResponse.value = null
 
-  // If there's a saved response, display it
-  if (savedResponse.value && savedResponse.value.response) {
-    aiStore.setLastResponse(savedResponse.value.response)
+  // Load any previously saved response for this section
+  const response = aiStore.getSavedResponse(sectionId.value)
+
+  // Only set the response if it exists and matches the current section
+  if (response && response.sectionId === sectionId.value) {
+    savedResponse.value = response
+    aiStore.setLastResponse(response.response)
   }
 }
 
@@ -474,6 +484,11 @@ const handleProviderChange = () => {
     customModel.value = aiStore.customModel || ''
     customEndpoint.value = aiStore.customEndpoint || ''
     customHeaders.value = aiStore.customHeaders || ''
+  } else if (aiStore.provider === 'ollama') {
+    // For Ollama, use the current version or default to empty
+    modelVersion.value = aiStore.version || ''
+    // Set mock API key for Ollama to maintain UI consistency
+    apiKey.value = 'OLLAMA-LOCAL-NO-KEY-REQUIRED'
   }
 }
 
@@ -483,17 +498,26 @@ const saveAIConfig = async () => {
   aiStore.clearError()
   configSaveStatus.value = ''
 
-  // Check for API key
-  if (!apiKey.value.trim()) {
+  // Check for API key (skip for Ollama)
+  if (aiStore.provider !== 'ollama' && !apiKey.value.trim()) {
     configSaveStatus.value = 'Invalid API Key'
     return
   }
 
-  // Basic format validation
-  const isValidFormat = validateApiKey(aiStore.provider, apiKey.value)
-  if (!isValidFormat) {
-    configSaveStatus.value = 'Invalid API Key'
+  // Check for model version (required for all providers)
+  if (!modelVersion.value.trim()) {
+    configSaveStatus.value = 'Model Required'
+    aiStore.setError('Please provide a model version')
     return
+  }
+
+  // Basic format validation (skip for Ollama)
+  if (aiStore.provider !== 'ollama') {
+    const isValidFormat = validateApiKey(aiStore.provider, apiKey.value)
+    if (!isValidFormat) {
+      configSaveStatus.value = 'Invalid API Key'
+      return
+    }
   }
 
   // For custom provider, validate the endpoint and model
@@ -526,16 +550,26 @@ const saveAIConfig = async () => {
   // Test the connection with the API
   isTestingConnection.value = true
   try {
-    await testApiConnection(
-      aiStore.provider,
-      apiKey.value,
-      customModel.value,
-      customEndpoint.value,
-      customHeaders.value,
-    )
+    // Skip API test for Ollama since it's local
+    if (aiStore.provider !== 'ollama') {
+      await testApiConnection(
+        aiStore.provider,
+        apiKey.value,
+        customModel.value,
+        customEndpoint.value,
+        customHeaders.value,
+        modelVersion.value,
+      )
+    }
 
     // If successful, save to store
-    aiStore.setApiKey(apiKey.value)
+    // For Ollama, we still save the mock key to maintain UI consistency
+    if (aiStore.provider === 'ollama') {
+      aiStore.setApiKey('OLLAMA-LOCAL-NO-KEY-REQUIRED')
+    } else {
+      aiStore.setApiKey(apiKey.value)
+    }
+    aiStore.setVersion(modelVersion.value)
     aiStore.saveSettings()
     configSaveStatus.value = 'Saved Successfully'
 
@@ -552,9 +586,15 @@ const saveAIConfig = async () => {
 }
 
 // Handle the code graded event from CodeEditor component
-const handleCodeGraded = () => {
-  // Reload saved response data
-  loadSavedResponse()
+const handleCodeGraded = (response) => {
+  // If we received a new response, use it directly
+  if (response) {
+    aiStore.setLastResponse(response)
+    savedResponse.value = aiStore.getSavedResponse(sectionId.value)
+  } else {
+    // Otherwise reload the saved response
+    loadSavedResponse()
+  }
 
   // Ensure Prism highlights any code in the response
   nextTick(() => {
@@ -606,7 +646,11 @@ onMounted(async () => {
 watch(
   () => aiStore.apiKey,
   (newValue) => {
-    apiKey.value = newValue
+    if (aiStore.provider === 'ollama') {
+      apiKey.value = 'OLLAMA-LOCAL-NO-KEY-REQUIRED'
+    } else {
+      apiKey.value = newValue
+    }
   },
 )
 
@@ -621,13 +665,19 @@ watch(
 // Watch for provider changes
 watch(
   () => aiStore.provider,
-  () => {
+  (newProvider) => {
+    if (newProvider === 'ollama') {
+      apiKey.value = 'OLLAMA-LOCAL-NO-KEY-REQUIRED'
+    }
     handleProviderChange()
   },
 )
 
 // Watch for changes in route or topic
 watch([sectionId, () => topicStore.currentTopic], () => {
+  // Clear any existing response when changing sections
+  aiStore.resetLastResponse()
+  savedResponse.value = null
   loadContent()
 })
 
