@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Streaming Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      .output {
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 3px;
+        min-height: 100px;
+        white-space: pre-wrap;
+        font-family: monospace;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        cursor: pointer;
+      }
+      .error {
+        color: red;
+      }
+      .success {
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Streaming Test Page</h1>
+
+    <div class="test-section">
+      <h2>Test 1: Simple Streaming Endpoint</h2>
+      <button onclick="testSimpleStream()">Test Simple Streaming</button>
+      <div id="simple-output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>Test 2: AI Chat Streaming (Production)</h2>
+      <input
+        type="text"
+        id="api-key"
+        placeholder="Enter API Key"
+        style="width: 300px; margin: 5px"
+      />
+      <br />
+      <input
+        type="text"
+        id="message"
+        placeholder="Enter message"
+        value="Hello, how are you?"
+        style="width: 300px; margin: 5px"
+      />
+      <br />
+      <button onclick="testAIStream()">Test AI Streaming</button>
+      <div id="ai-output" class="output"></div>
+    </div>
+
+    <script>
+      function log(elementId, message, type = 'info') {
+        const element = document.getElementById(elementId)
+        const timestamp = new Date().toLocaleTimeString()
+        const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'
+        element.textContent += `[${timestamp}] ${prefix} ${message}\n`
+        element.scrollTop = element.scrollHeight
+      }
+
+      async function testSimpleStream() {
+        const output = document.getElementById('simple-output')
+        output.textContent = ''
+
+        log('simple-output', 'Starting simple streaming test...')
+
+        try {
+          const response = await fetch('/api/test-stream', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({}),
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+
+          log('simple-output', 'Response received, checking for ReadableStream...')
+
+          if (!response.body) {
+            throw new Error('ReadableStream not supported')
+          }
+
+          log('simple-output', 'ReadableStream available, reading chunks...')
+
+          const reader = response.body.getReader()
+          const decoder = new TextDecoder()
+          let chunkCount = 0
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              log('simple-output', `Stream completed after ${chunkCount} chunks`, 'success')
+              break
+            }
+
+            const chunk = decoder.decode(value, { stream: true })
+            chunkCount++
+            log('simple-output', `Chunk ${chunkCount}: "${chunk}"`)
+          }
+        } catch (error) {
+          log('simple-output', `Error: ${error.message}`, 'error')
+        }
+      }
+
+      async function testAIStream() {
+        const output = document.getElementById('ai-output')
+        const apiKey = document.getElementById('api-key').value
+        const message = document.getElementById('message').value
+
+        output.textContent = ''
+
+        if (!apiKey) {
+          log('ai-output', 'Please enter an API key', 'error')
+          return
+        }
+
+        log('ai-output', 'Starting AI streaming test...')
+
+        try {
+          const response = await fetch('/api/proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              target: 'https://api.openai.com/v1/chat/completions',
+              data: {
+                model: 'gpt-4o-mini-2024-07-18',
+                messages: [
+                  { role: 'system', content: 'You are a helpful code debugging assistant.' },
+                  { role: 'user', content: message },
+                ],
+                stream: true,
+                max_tokens: 100,
+              },
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              stream: true,
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`)
+          }
+
+          log('ai-output', 'Response received, checking for ReadableStream...')
+
+          if (!response.body) {
+            throw new Error('ReadableStream not supported')
+          }
+
+          log('ai-output', 'ReadableStream available, reading chunks...')
+
+          const reader = response.body.getReader()
+          const decoder = new TextDecoder()
+          let chunkCount = 0
+          let fullContent = ''
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              log('ai-output', `Stream completed after ${chunkCount} chunks`, 'success')
+              log('ai-output', `Final content: ${fullContent}`)
+              break
+            }
+
+            const chunk = decoder.decode(value, { stream: true })
+            chunkCount++
+
+            // Process OpenAI SSE format
+            const lines = chunk.split('\n')
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6).trim()
+                if (data === '[DONE]') continue
+
+                try {
+                  const parsed = JSON.parse(data)
+                  const content = parsed.choices?.[0]?.delta?.content
+                  if (content) {
+                    fullContent += content
+                    log('ai-output', `Content: ${content}`)
+                  }
+                } catch (e) {
+                  // Skip invalid JSON
+                }
+              }
+            }
+          }
+        } catch (error) {
+          log('ai-output', `Error: ${error.message}`, 'error')
+        }
+      }
+    </script>
+  </body>
+</html>

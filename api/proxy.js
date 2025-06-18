@@ -80,13 +80,16 @@ const handler = async (req, res) => {
               `Sending chunk ${chunkCount}: ${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}`,
             )
 
-            // Write the chunk to the response
+            // Write the chunk to the response immediately
             res.write(chunk)
 
-            // Flush the response to ensure chunks are sent immediately
+            // Force flush to ensure immediate transmission
             if (res.flush) {
               res.flush()
             }
+
+            // Small delay to ensure chunk is sent before processing next
+            await new Promise((resolve) => setTimeout(resolve, 1))
           }
         }
 

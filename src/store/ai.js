@@ -34,8 +34,10 @@ export const useAIStore = defineStore('ai', {
         { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
         { value: 'claude-opus-4', label: 'Claude Opus 4' },
         { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
+        { value: 'gpt-3.5', label: 'GPT-3.5 Turbo' },
         { value: 'gpt-4', label: 'GPT-4 Turbo' },
         { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
         { value: 'gpt-4.5', label: 'GPT-4.5' },
         { value: 'gpt-o1', label: 'GPT-o1' },
         { value: 'gpt-o3', label: 'GPT-o3' },
@@ -60,12 +62,14 @@ export const useAIStore = defineStore('ai', {
 
     providerEndpoints() {
       return {
+        'gpt-3.5': 'https://api.openai.com/v1/chat/completions',
         'gpt-4': 'https://api.openai.com/v1/chat/completions',
         'gpt-4o': 'https://api.openai.com/v1/chat/completions',
         'gpt-4.5': 'https://api.openai.com/v1/chat/completions',
         'gpt-o1': 'https://api.openai.com/v1/chat/completions',
         'gpt-o3': 'https://api.openai.com/v1/chat/completions',
         'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+        'gpt-4o-mini': 'https://api.openai.com/v1/chat/completions',
         'claude-3-5-sonnet': 'https://api.anthropic.com/v1/messages',
         'claude-3-7-sonnet': 'https://api.anthropic.com/v1/messages',
         'claude-3-opus': 'https://api.anthropic.com/v1/messages',

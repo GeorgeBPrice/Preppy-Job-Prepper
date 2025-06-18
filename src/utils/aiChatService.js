@@ -18,6 +18,7 @@ const API_ENDPOINTS = {
   'gpt-o1': 'https://api.openai.com/v1/chat/completions',
   'gpt-o3': 'https://api.openai.com/v1/chat/completions',
   'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+  'gpt-4o-mini': 'https://api.openai.com/v1/chat/completions',
 
   // Google Models
   'gemini-1.5-pro':
@@ -56,14 +57,15 @@ export const CHAT_MODEL_MAPPINGS = {
   'claude-opus-4': 'claude-3-opus-20240229',
   'claude-sonnet-4': 'claude-3-5-sonnet-20240620',
 
-  // OpenAI Models
-  'gpt-3.5-turbo': 'gpt-3.5-turbo-0613',
-  'gpt-4': 'gpt-4-turbo-2024-04-09',
-  'gpt-4o': 'gpt-4o-2024-05-13',
-  'gpt-4.5': 'gpt-4o-mini-2024-07-18',
-  'gpt-o1': 'gpt-o1-2024-05-13',
-  'gpt-o3': 'gpt-o3-2024-07-18',
-  'gpt-o4-mini': 'gpt-o4-mini-2024-07-18',
+  // OpenAI Models - Updated to current versions
+  'gpt-3.5-turbo': 'gpt-3.5-turbo',
+  'gpt-4': 'gpt-4-turbo-preview',
+  'gpt-4o': 'gpt-4o',
+  'gpt-4o-mini': 'gpt-4o-mini',
+  'gpt-4.5': 'gpt-4o-mini',
+  'gpt-o1': 'gpt-o1',
+  'gpt-o3': 'gpt-o3',
+  'gpt-o4-mini': 'gpt-o4-mini',
 
   // Google Models
   'gemini-1.5-pro': 'gemini-1.5-pro-latest',
@@ -323,6 +325,8 @@ const formatChatRequest = (
   const modelToUse =
     provider === 'other' && customModel ? customModel : version || CHAT_MODEL_MAPPINGS[provider]
 
+  console.debug(`Formatting request for ${provider}, model: ${modelToUse}, stream: ${stream}`)
+
   // Format request for Anthropic Claude models
   if (provider.startsWith('claude')) {
     const systemMessage = messages.find((msg) => msg.role === 'system')?.content || systemPrompt
@@ -347,12 +351,14 @@ const formatChatRequest = (
 
   // Format request for OpenAI models (GPT)
   else if (provider.startsWith('gpt')) {
-    return {
+    const request = {
       model: modelToUse,
       max_tokens: 4000,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       stream: stream,
     }
+    console.debug('OpenAI request format:', JSON.stringify(request, null, 2))
+    return request
   }
 
   // Format for Mistral models
@@ -544,6 +550,11 @@ const extractResponseText = (provider, data) => {
  */
 export const processStreamChunk = (chunk, provider, version, customModel) => {
   try {
+    console.debug(
+      `Processing chunk for ${provider}:`,
+      chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''),
+    )
+
     // For OpenAI - uses SSE format
     if (provider.startsWith('gpt')) {
       const chunkStr = chunk.toString()
@@ -571,6 +582,7 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
             const deltaContent = data.choices?.[0]?.delta?.content
             if (deltaContent) {
               content += deltaContent
+              console.debug(`OpenAI delta content: ${deltaContent}`)
             }
           } catch (err) {
             // Ignore JSON parse errors for non-JSON lines
@@ -607,7 +619,9 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
 
             // Handle Claude's content_block_delta events
             if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
-              content += data.delta.text || ''
+              const text = data.delta.text || ''
+              content += text
+              console.debug(`Claude delta text: ${text}`)
             }
             // Handle other Claude event types (ignore them but don't error)
             else if (
@@ -641,7 +655,9 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
               const jsonData = line.slice(5).trim()
               if (jsonData) {
                 const data = JSON.parse(jsonData)
-                return data.choices?.[0]?.delta?.content || ''
+                const content = data.choices?.[0]?.delta?.content || ''
+                if (content) console.debug(`Mistral delta content: ${content}`)
+                return content
               }
             } catch (err) {
               // Skip invalid JSON
@@ -654,7 +670,9 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
         // Try to parse as direct JSON
         try {
           const data = JSON.parse(chunk)
-          return data.choices?.[0]?.delta?.content || ''
+          const content = data.choices?.[0]?.delta?.content || ''
+          if (content) console.debug(`Mistral direct content: ${content}`)
+          return content
         } catch (err) {
           console.warn('Failed to parse Mistral response as JSON:', err.message)
           return ''
@@ -671,6 +689,7 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
         ollamaHandler.processChunk(chunk, config, (text) => {
           content += text
         })
+        if (content) console.debug(`Ollama content: ${content}`)
         return content
       } catch (err) {
         console.warn('Failed to parse Ollama response as JSON:', err.message)
@@ -688,12 +707,13 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
               const jsonData = line.slice(5).trim()
               if (jsonData) {
                 const data = JSON.parse(jsonData)
-                return (
+                const content =
                   data.choices?.[0]?.delta?.content ||
                   data.delta?.text ||
                   data.content?.[0]?.text ||
                   ''
-                )
+                if (content) console.debug(`Other provider SSE content: ${content}`)
+                return content
               }
             } catch (err) {
               // Skip invalid JSON
@@ -708,13 +728,16 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
       try {
         const data = JSON.parse(chunk)
         // Try to extract from common stream formats
-        return (
+        const content =
           data.choices?.[0]?.delta?.content || data.delta?.text || data.content?.[0]?.text || ''
-        )
+        if (content) console.debug(`Other provider direct content: ${content}`)
+        return content
       } catch (err) {
         // If not valid JSON, it might be a chunk of text
         console.warn('Not valid JSON, treating as raw text chunk:', err.message)
-        return chunk.toString()
+        const text = chunk.toString()
+        if (text) console.debug(`Raw text chunk: ${text}`)
+        return text
       }
     }
   } catch (err) {
@@ -772,6 +795,9 @@ export const streamChatMessage = async (
   try {
     if (isDevelopment) {
       console.log('Using direct API call with streaming in development mode')
+      console.log('🔗 Endpoint:', endpoint)
+      console.log('📤 Request data:', JSON.stringify(requestData, null, 2))
+      console.log('📋 Headers:', headers)
 
       // Use fetch for better streaming support
       const response = await fetch(endpoint, {
@@ -780,9 +806,14 @@ export const streamChatMessage = async (
         body: JSON.stringify(requestData),
       })
 
+      console.log('📥 Response status:', response.status, response.statusText)
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(`API error: ${errorData.message || response.statusText}`)
+        console.error('❌ API Error response:', errorData)
+        throw new Error(
+          `API error: ${errorData.error?.message || errorData.message || response.statusText}`,
+        )
       }
 
       // Handle streaming based on provider
@@ -856,6 +887,7 @@ export const streamChatMessage = async (
         const decoder = new TextDecoder()
         let fullText = ''
         let chunkCount = 0
+        let buffer = '' // Buffer for incomplete chunks
 
         try {
           while (true) {
@@ -871,11 +903,33 @@ export const streamChatMessage = async (
               `Production: Received chunk ${chunkCount}: ${chunk.substring(0, 100)}${chunk.length > 100 ? '...' : ''}`,
             )
 
-            const content = processStreamChunk(chunk, provider, version, customModel)
+            // Add to buffer and process complete lines
+            buffer += chunk
 
+            // Process complete lines from the buffer
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.trim()) {
+                const content = processStreamChunk(line, provider, version, customModel)
+                if (content) {
+                  console.debug(
+                    `Production: Processed content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+                  )
+                  fullText += content
+                  onChunk(content)
+                }
+              }
+            }
+          }
+
+          // Process any remaining buffer content
+          if (buffer.trim()) {
+            const content = processStreamChunk(buffer, provider, version, customModel)
             if (content) {
               console.debug(
-                `Production: Processed content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+                `Production: Final buffer content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
               )
               fullText += content
               onChunk(content)
@@ -1087,4 +1141,74 @@ export const testChatApiConnection = async (
       'API connection test failed'
     throw new Error(`Connection test failed: ${errorMsg}`)
   }
+}
+
+/**
+ * Test streaming functionality - can be called from browser console
+ * Usage: testStreaming('your-api-key', 'Hello, test streaming')
+ */
+export const testStreaming = async (apiKey, message = 'Hello, test streaming') => {
+  console.log('🧪 Testing streaming functionality...')
+  console.log('🔑 API Key format check:', apiKey ? `${apiKey.substring(0, 10)}...` : 'No API key')
+
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    console.error('❌ Invalid API key format. OpenAI API keys should start with "sk-"')
+    return { success: false, error: 'Invalid API key format' }
+  }
+
+  try {
+    const messages = [{ role: 'user', content: message }]
+    const provider = 'gpt-4o-mini'
+    const endpoint = API_ENDPOINTS[provider]
+    const modelToUse = CHAT_MODEL_MAPPINGS[provider]
+
+    console.log('📋 Test details:')
+    console.log('  - Provider:', provider)
+    console.log('  - Endpoint:', endpoint)
+    console.log('  - Model:', modelToUse)
+    console.log('  - Message:', message)
+
+    let receivedChunks = []
+    let chunkCount = 0
+
+    const onChunk = (content) => {
+      chunkCount++
+      receivedChunks.push(content)
+      console.log(`📦 Chunk ${chunkCount}: "${content}"`)
+    }
+
+    console.log('🚀 Starting streaming test...')
+    const result = await streamChatMessage(
+      messages,
+      provider,
+      apiKey,
+      'You are a helpful assistant.',
+      '',
+      '',
+      '',
+      '',
+      'test',
+      onChunk,
+    )
+
+    console.log('✅ Streaming test completed!')
+    console.log(`📊 Total chunks received: ${chunkCount}`)
+    console.log(`📝 Final result: ${result}`)
+    console.log(`📋 All chunks:`, receivedChunks)
+
+    return { success: true, chunks: receivedChunks, result }
+  } catch (error) {
+    console.error('❌ Streaming test failed:', error)
+    console.error('🔍 Error details:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data,
+    })
+    return { success: false, error: error.message }
+  }
+}
+
+// Make it available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testStreaming = testStreaming
 }
