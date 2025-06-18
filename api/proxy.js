@@ -30,13 +30,9 @@ const handler = async (req, res) => {
     return res.status(400).json({ error: 'Target URL is required' })
   }
 
-  console.log(`Proxy request: ${stream ? 'STREAMING' : 'NON-STREAMING'} to ${target}`)
-
   try {
     // Handle streaming responses
     if (stream) {
-      console.log('Starting streaming request...')
-
       // Use fetch for streaming support
       const response = await fetch(target, {
         method: 'POST',
@@ -46,11 +42,8 @@ const handler = async (req, res) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.error('Streaming request failed:', response.status, errorData)
         return res.status(response.status).json(errorData)
       }
-
-      console.log('Streaming response received, setting up stream...')
 
       // Set up streaming response headers
       res.setHeader('Content-Type', 'text/plain; charset=utf-8')
@@ -62,24 +55,15 @@ const handler = async (req, res) => {
       // Get the readable stream from the response
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      let chunkCount = 0
 
       try {
         while (true) {
           const { done, value } = await reader.read()
-          if (done) {
-            console.log(`Streaming completed after ${chunkCount} chunks`)
-            break
-          }
+          if (done) break
 
           // Decode the chunk and send it to the client
           const chunk = decoder.decode(value, { stream: true })
           if (chunk) {
-            chunkCount++
-            console.debug(
-              `Sending chunk ${chunkCount}: ${chunk.substring(0, 50)}${chunk.length > 50 ? '...' : ''}`,
-            )
-
             // Write the chunk to the response immediately
             res.write(chunk)
 
@@ -105,8 +89,6 @@ const handler = async (req, res) => {
         }
       }
     } else {
-      console.log('Starting non-streaming request...')
-
       // Handle non-streaming responses with axios
       const response = await axios({
         method: 'post',
@@ -116,7 +98,6 @@ const handler = async (req, res) => {
         timeout: 30000, // 30 second timeout
       })
 
-      console.log('Non-streaming response received')
       return res.status(response.status).json(response.data)
     }
   } catch (error) {

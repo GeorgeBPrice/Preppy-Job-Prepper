@@ -2,9 +2,6 @@
   "functions": {
     "api/proxy.js": {
       "maxDuration": 60
-    },
-    "api/test-stream.js": {
-      "maxDuration": 30
     }
   },
   "headers": [

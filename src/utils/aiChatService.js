@@ -325,8 +325,6 @@ const formatChatRequest = (
   const modelToUse =
     provider === 'other' && customModel ? customModel : version || CHAT_MODEL_MAPPINGS[provider]
 
-  console.debug(`Formatting request for ${provider}, model: ${modelToUse}, stream: ${stream}`)
-
   // Format request for Anthropic Claude models
   if (provider.startsWith('claude')) {
     const systemMessage = messages.find((msg) => msg.role === 'system')?.content || systemPrompt
@@ -351,14 +349,12 @@ const formatChatRequest = (
 
   // Format request for OpenAI models (GPT)
   else if (provider.startsWith('gpt')) {
-    const request = {
+    return {
       model: modelToUse,
       max_tokens: 4000,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       stream: stream,
     }
-    console.debug('OpenAI request format:', JSON.stringify(request, null, 2))
-    return request
   }
 
   // Format for Mistral models
@@ -550,11 +546,6 @@ const extractResponseText = (provider, data) => {
  */
 export const processStreamChunk = (chunk, provider, version, customModel) => {
   try {
-    console.debug(
-      `Processing chunk for ${provider}:`,
-      chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''),
-    )
-
     // For OpenAI - uses SSE format
     if (provider.startsWith('gpt')) {
       const chunkStr = chunk.toString()
@@ -582,7 +573,6 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
             const deltaContent = data.choices?.[0]?.delta?.content
             if (deltaContent) {
               content += deltaContent
-              console.debug(`OpenAI delta content: ${deltaContent}`)
             }
           } catch (err) {
             // Ignore JSON parse errors for non-JSON lines
@@ -621,7 +611,6 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
             if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
               const text = data.delta.text || ''
               content += text
-              console.debug(`Claude delta text: ${text}`)
             }
             // Handle other Claude event types (ignore them but don't error)
             else if (
@@ -656,7 +645,6 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
               if (jsonData) {
                 const data = JSON.parse(jsonData)
                 const content = data.choices?.[0]?.delta?.content || ''
-                if (content) console.debug(`Mistral delta content: ${content}`)
                 return content
               }
             } catch (err) {
@@ -671,7 +659,6 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
         try {
           const data = JSON.parse(chunk)
           const content = data.choices?.[0]?.delta?.content || ''
-          if (content) console.debug(`Mistral direct content: ${content}`)
           return content
         } catch (err) {
           console.warn('Failed to parse Mistral response as JSON:', err.message)
@@ -689,7 +676,6 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
         ollamaHandler.processChunk(chunk, config, (text) => {
           content += text
         })
-        if (content) console.debug(`Ollama content: ${content}`)
         return content
       } catch (err) {
         console.warn('Failed to parse Ollama response as JSON:', err.message)
@@ -712,7 +698,6 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
                   data.delta?.text ||
                   data.content?.[0]?.text ||
                   ''
-                if (content) console.debug(`Other provider SSE content: ${content}`)
                 return content
               }
             } catch (err) {
@@ -730,13 +715,11 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
         // Try to extract from common stream formats
         const content =
           data.choices?.[0]?.delta?.content || data.delta?.text || data.content?.[0]?.text || ''
-        if (content) console.debug(`Other provider direct content: ${content}`)
         return content
       } catch (err) {
         // If not valid JSON, it might be a chunk of text
         console.warn('Not valid JSON, treating as raw text chunk:', err.message)
         const text = chunk.toString()
-        if (text) console.debug(`Raw text chunk: ${text}`)
         return text
       }
     }
@@ -793,11 +776,10 @@ export const streamChatMessage = async (
   const headers = getHeaders(provider, apiKey, customHeaders)
 
   try {
+    // Prod version is hosted on Vercel, which uses a proxy for CORS
+    // In development mode, we use the direct API calls
     if (isDevelopment) {
       console.log('Using direct API call with streaming in development mode')
-      console.log('🔗 Endpoint:', endpoint)
-      console.log('📤 Request data:', JSON.stringify(requestData, null, 2))
-      console.log('📋 Headers:', headers)
 
       // Use fetch for better streaming support
       const response = await fetch(endpoint, {
@@ -806,11 +788,8 @@ export const streamChatMessage = async (
         body: JSON.stringify(requestData),
       })
 
-      console.log('📥 Response status:', response.status, response.statusText)
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.error('❌ API Error response:', errorData)
         throw new Error(
           `API error: ${errorData.error?.message || errorData.message || response.statusText}`,
         )
@@ -857,7 +836,6 @@ export const streamChatMessage = async (
     } else {
       // In production, use our proxy with streaming
       try {
-        console.log('Production: Making streaming request to proxy')
         const response = await fetch(PROXY_API_URL, {
           method: 'POST',
           headers: {
@@ -876,32 +854,21 @@ export const streamChatMessage = async (
           throw new Error(`API error: ${errorData.message || response.statusText}`)
         }
 
-        console.log('Production: Proxy response received, checking for ReadableStream')
-
         if (!response.body) {
           throw new Error('ReadableStream not supported by your browser')
         }
 
-        console.log('Production: ReadableStream available, starting to read chunks')
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let fullText = ''
-        let chunkCount = 0
         let buffer = '' // Buffer for incomplete chunks
 
         try {
           while (true) {
             const { done, value } = await reader.read()
-            if (done) {
-              console.log(`Production: Stream completed after ${chunkCount} chunks`)
-              break
-            }
+            if (done) break
 
             const chunk = decoder.decode(value, { stream: true })
-            chunkCount++
-            console.debug(
-              `Production: Received chunk ${chunkCount}: ${chunk.substring(0, 100)}${chunk.length > 100 ? '...' : ''}`,
-            )
 
             // Add to buffer and process complete lines
             buffer += chunk
@@ -914,9 +881,6 @@ export const streamChatMessage = async (
               if (line.trim()) {
                 const content = processStreamChunk(line, provider, version, customModel)
                 if (content) {
-                  console.debug(
-                    `Production: Processed content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-                  )
                   fullText += content
                   onChunk(content)
                 }
@@ -928,22 +892,18 @@ export const streamChatMessage = async (
           if (buffer.trim()) {
             const content = processStreamChunk(buffer, provider, version, customModel)
             if (content) {
-              console.debug(
-                `Production: Final buffer content: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-              )
               fullText += content
               onChunk(content)
             }
           }
 
-          console.log(`Production: Streaming completed, total content length: ${fullText.length}`)
           return fullText
         } catch (err) {
-          console.error('Production: Stream processing error:', err)
+          console.error('Stream processing error:', err)
           throw new Error(`Stream processing error: ${err.message}`)
         }
       } catch (error) {
-        console.warn('Production: Streaming error, falling back to regular request:', error)
+        console.warn('Streaming error, falling back to regular request:', error)
         // Fallback to non-streaming if there's an error
         return await sendChatMessage(
           messages,
@@ -1141,74 +1101,4 @@ export const testChatApiConnection = async (
       'API connection test failed'
     throw new Error(`Connection test failed: ${errorMsg}`)
   }
-}
-
-/**
- * Test streaming functionality - can be called from browser console
- * Usage: testStreaming('your-api-key', 'Hello, test streaming')
- */
-export const testStreaming = async (apiKey, message = 'Hello, test streaming') => {
-  console.log('🧪 Testing streaming functionality...')
-  console.log('🔑 API Key format check:', apiKey ? `${apiKey.substring(0, 10)}...` : 'No API key')
-
-  if (!apiKey || !apiKey.startsWith('sk-')) {
-    console.error('❌ Invalid API key format. OpenAI API keys should start with "sk-"')
-    return { success: false, error: 'Invalid API key format' }
-  }
-
-  try {
-    const messages = [{ role: 'user', content: message }]
-    const provider = 'gpt-4o-mini'
-    const endpoint = API_ENDPOINTS[provider]
-    const modelToUse = CHAT_MODEL_MAPPINGS[provider]
-
-    console.log('📋 Test details:')
-    console.log('  - Provider:', provider)
-    console.log('  - Endpoint:', endpoint)
-    console.log('  - Model:', modelToUse)
-    console.log('  - Message:', message)
-
-    let receivedChunks = []
-    let chunkCount = 0
-
-    const onChunk = (content) => {
-      chunkCount++
-      receivedChunks.push(content)
-      console.log(`📦 Chunk ${chunkCount}: "${content}"`)
-    }
-
-    console.log('🚀 Starting streaming test...')
-    const result = await streamChatMessage(
-      messages,
-      provider,
-      apiKey,
-      'You are a helpful assistant.',
-      '',
-      '',
-      '',
-      '',
-      'test',
-      onChunk,
-    )
-
-    console.log('✅ Streaming test completed!')
-    console.log(`📊 Total chunks received: ${chunkCount}`)
-    console.log(`📝 Final result: ${result}`)
-    console.log(`📋 All chunks:`, receivedChunks)
-
-    return { success: true, chunks: receivedChunks, result }
-  } catch (error) {
-    console.error('❌ Streaming test failed:', error)
-    console.error('🔍 Error details:', {
-      message: error.message,
-      stack: error.stack,
-      response: error.response?.data,
-    })
-    return { success: false, error: error.message }
-  }
-}
-
-// Make it available globally for debugging
-if (typeof window !== 'undefined') {
-  window.testStreaming = testStreaming
 }
