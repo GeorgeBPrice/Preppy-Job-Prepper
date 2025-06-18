@@ -7,7 +7,7 @@ const CONVERSATIONS_STORAGE_KEY = 'js_job_prepper_chat_conversations'
 
 export const useAIChatStore = defineStore('aiChat', {
   state: () => ({
-    provider: 'gpt-3.5-turbo',
+    provider: 'gpt-4o-mini',
     apiKey: '',
     customModel: '',
     customEndpoint: '',
@@ -35,15 +35,24 @@ export const useAIChatStore = defineStore('aiChat', {
 
   getters: {
     availableProviders() {
-      return [
+      // Check for development mode
+      const isDevelopment =
+        typeof window !== 'undefined' &&
+        (window.ENV === 'development' ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1')
+
+      const providers = [
         { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
         { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet' },
         { value: 'claude-3-opus', label: 'Claude 3 Opus' },
         { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
         { value: 'claude-opus-4', label: 'Claude Opus 4' },
         { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
+        { value: 'gpt-3.5', label: 'GPT-3.5 Turbo' },
         { value: 'gpt-4', label: 'GPT-4 Turbo' },
         { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
         { value: 'gpt-4.5', label: 'GPT-4.5' },
         { value: 'gpt-o1', label: 'GPT-o1' },
         { value: 'gpt-o3', label: 'GPT-o3' },
@@ -61,19 +70,27 @@ export const useAIChatStore = defineStore('aiChat', {
         { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
         { value: 'qwen-2.5', label: 'Qwen 2.5' },
         { value: 'cohere-command-r-plus', label: 'Cohere Command R+' },
-        { value: 'ollama', label: 'Ollama (Local)' },
         { value: 'other', label: 'Other...' },
       ]
+
+      // Only add Ollama in development mode
+      if (isDevelopment) {
+        providers.push({ value: 'ollama', label: 'Ollama (Local)' })
+      }
+
+      return providers
     },
 
     providerEndpoints() {
       return {
+        'gpt-3.5': 'https://api.openai.com/v1/chat/completions',
         'gpt-4': 'https://api.openai.com/v1/chat/completions',
         'gpt-4o': 'https://api.openai.com/v1/chat/completions',
         'gpt-4.5': 'https://api.openai.com/v1/chat/completions',
         'gpt-o1': 'https://api.openai.com/v1/chat/completions',
         'gpt-o3': 'https://api.openai.com/v1/chat/completions',
         'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+        'gpt-4o-mini': 'https://api.openai.com/v1/chat/completions',
         'claude-3-5-sonnet': 'https://api.anthropic.com/v1/messages',
         'claude-3-7-sonnet': 'https://api.anthropic.com/v1/messages',
         'claude-3-opus': 'https://api.anthropic.com/v1/messages',
@@ -159,7 +176,7 @@ export const useAIChatStore = defineStore('aiChat', {
       const data = loadFromStorage(STORAGE_KEY)
 
       if (data) {
-        this.provider = data.provider || 'gpt-3.5-turbo'
+        this.provider = data.provider || 'gpt-4o-mini'
         this.apiKey = data.apiKey || ''
         this.version = data.version || ''
         this.customModel = data.customModel || ''
@@ -330,6 +347,8 @@ export const useAIChatStore = defineStore('aiChat', {
           timestamp: new Date().toISOString(),
         }
 
+        console.debug('Adding message:', { role, contentLength: content.length, messageId })
+
         // Add the message to the active conversation
         conversation.messages.push(message)
         conversation.timestamp = new Date().toISOString()
@@ -352,42 +371,85 @@ export const useAIChatStore = defineStore('aiChat', {
     startStreamingMessage() {
       const messageId = this.addMessage('assistant', '')
       this.streamingMessageId = messageId
+      console.debug('Started streaming message:', messageId)
       return messageId
     },
 
     // Update streaming message content
     updateStreamingMessage(content) {
-      if (!this.streamingMessageId) return
+      if (!this.streamingMessageId) {
+        console.warn('No streaming message ID found')
+        return
+      }
 
       const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
-      if (!conversation) return
+      if (!conversation) {
+        console.warn('No active conversation found')
+        return
+      }
 
-      const message = conversation.messages.find((msg) => msg.id === this.streamingMessageId)
-      if (message) {
-        message.content += content
+      const messageIndex = conversation.messages.findIndex(
+        (msg) => msg.id === this.streamingMessageId,
+      )
+      if (messageIndex !== -1) {
+        const message = conversation.messages[messageIndex]
+        console.debug('Updating streaming message:', {
+          currentLength: message.content.length,
+          newContent: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+          messageId: this.streamingMessageId,
+        })
+
+        // Ensure reactivity by updating the array element directly
+        conversation.messages[messageIndex] = {
+          ...message,
+          content: message.content + content,
+        }
+
         // Occasionally save if the content gets long
-        if (message.content.length % 500 === 0) {
+        if (conversation.messages[messageIndex].content.length % 500 === 0) {
           this.saveConversations()
         }
+      } else {
+        console.warn('Streaming message not found:', this.streamingMessageId)
       }
     },
 
     // Finalize streaming message
     finalizeStreamingMessage(fullContent) {
-      if (!this.streamingMessageId) return
+      if (!this.streamingMessageId) {
+        console.warn('No streaming message ID to finalize')
+        return
+      }
 
       const conversation = this.conversations.find((c) => c.id === this.activeConversationId)
-      if (!conversation) return
+      if (!conversation) {
+        console.warn('No active conversation found for finalization')
+        return
+      }
 
-      const message = conversation.messages.find((msg) => msg.id === this.streamingMessageId)
-      if (message) {
+      const messageIndex = conversation.messages.findIndex(
+        (msg) => msg.id === this.streamingMessageId,
+      )
+      if (messageIndex !== -1) {
+        const message = conversation.messages[messageIndex]
+        console.debug('Finalizing streaming message:', {
+          finalLength: message.content.length,
+          fullContentLength: fullContent ? fullContent.length : 0,
+          messageId: this.streamingMessageId,
+        })
+
         // complete content if available
         if (fullContent) {
-          message.content = fullContent
+          conversation.messages[messageIndex] = {
+            ...message,
+            content: fullContent,
+          }
         }
 
         this.saveConversations()
         this.streamingMessageId = null
+      } else {
+        console.warn('Streaming message not found for finalization:', this.streamingMessageId)
       }
     },
 
@@ -414,11 +476,24 @@ export const useAIChatStore = defineStore('aiChat', {
 
       try {
         if (this.useStreaming) {
+          // Create streaming message but don't include it in the API request
           this.startStreamingMessage()
+
+          // Filter out any empty messages before sending to API
+          const filteredMessages = messagesToSend.filter(
+            (msg) => msg.content && msg.content.trim() !== '',
+          )
+
+          console.debug(
+            'Starting streaming with provider:',
+            this.provider,
+            'filtered messages:',
+            filteredMessages.length,
+          )
 
           // Stream the message in real-time
           const fullResponse = await streamChatMessage(
-            messagesToSend,
+            filteredMessages,
             this.provider,
             this.apiKey,
             this.systemPrompt || undefined,
@@ -429,16 +504,27 @@ export const useAIChatStore = defineStore('aiChat', {
             topic,
             // Callback each chunk
             (chunk) => {
+              console.debug(
+                'Received chunk:',
+                chunk.substring(0, 50) + (chunk.length > 50 ? '...' : ''),
+              )
               this.updateStreamingMessage(chunk)
             },
           )
 
+          console.debug('Streaming completed, final response length:', fullResponse.length)
+
           // Finalize completed response
           this.finalizeStreamingMessage(fullResponse)
         } else {
+          // Filter out any empty messages before sending to API
+          const filteredMessages = messagesToSend.filter(
+            (msg) => msg.content && msg.content.trim() !== '',
+          )
+
           // Fall back to non-streaming approach (user can toggle this in the settings)
           const response = await sendChatMessage(
-            messagesToSend,
+            filteredMessages,
             this.provider,
             this.apiKey,
             this.systemPrompt || undefined,

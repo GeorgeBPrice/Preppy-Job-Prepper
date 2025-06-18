@@ -11,12 +11,14 @@ const API_ENDPOINTS = {
   'claude-sonnet-4': 'https://api.anthropic.com/v1/messages',
 
   // OpenAI Models
+  'gpt-3.5': 'https://api.openai.com/v1/chat/completions',
   'gpt-4': 'https://api.openai.com/v1/chat/completions',
   'gpt-4o': 'https://api.openai.com/v1/chat/completions',
   'gpt-4.5': 'https://api.openai.com/v1/chat/completions',
   'gpt-o1': 'https://api.openai.com/v1/chat/completions',
   'gpt-o3': 'https://api.openai.com/v1/chat/completions',
   'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+  'gpt-4o-mini': 'https://api.openai.com/v1/chat/completions',
 
   // Google Models
   'gemini-1.5-pro':
@@ -66,8 +68,10 @@ export const MODEL_MAPPINGS = {
   'claude-sonnet-4': 'claude-3-5-sonnet-20240620',
 
   // OpenAI Models
+  'gpt-3.5': 'gpt-3.5-turbo-2024-07-18',
   'gpt-4': 'gpt-4-turbo-2024-04-09',
   'gpt-4o': 'gpt-4o-2024-05-13',
+  'gpt-4o-mini': 'gpt-4o-mini-2024-07-18',
   'gpt-4.5': 'gpt-4o-mini-2024-07-18',
   'gpt-o1': 'gpt-o1-2024-05-13',
   'gpt-o3': 'gpt-o3-2024-07-18',
@@ -164,28 +168,28 @@ class OllamaStreamHandler {
 
     const optimizations = {
       gemma: {
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9,
         frequency_penalty: 0.0,
         presence_penalty: 0.0,
       },
       qwen: {
-        temperature: 0.8,
+        temperature: 0.3,
         top_p: 0.9,
         repetition_penalty: 1.1,
       },
       deepseek: {
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9,
         max_tokens: 4096,
       },
       llama: {
-        temperature: 0.8,
+        temperature: 0.3,
         top_p: 0.9,
         frequency_penalty: 0.0,
       },
       mistral: {
-        temperature: 0.7,
+        temperature: 0.3,
         top_p: 0.9,
         max_tokens: 4096,
       },
@@ -387,8 +391,8 @@ Please provide a detailed review, pointing out both strengths and areas for impr
 
     // Get model-specific optimized parameters
     const optimizedParams = ollamaHandler.getOptimizedParams(modelToUse, {
-      temperature: 0.7,
-      top_p: 0.9,
+      temperature: 0.2,
+      top_p: 0.95,
     })
 
     return {

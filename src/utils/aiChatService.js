@@ -18,6 +18,7 @@ const API_ENDPOINTS = {
   'gpt-o1': 'https://api.openai.com/v1/chat/completions',
   'gpt-o3': 'https://api.openai.com/v1/chat/completions',
   'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
+  'gpt-4o-mini': 'https://api.openai.com/v1/chat/completions',
 
   // Google Models
   'gemini-1.5-pro':
@@ -56,14 +57,15 @@ export const CHAT_MODEL_MAPPINGS = {
   'claude-opus-4': 'claude-3-opus-20240229',
   'claude-sonnet-4': 'claude-3-5-sonnet-20240620',
 
-  // OpenAI Models
-  'gpt-3.5-turbo': 'gpt-3.5-turbo-0613',
-  'gpt-4': 'gpt-4-turbo-2024-04-09',
-  'gpt-4o': 'gpt-4o-2024-05-13',
-  'gpt-4.5': 'gpt-4o-mini-2024-07-18',
-  'gpt-o1': 'gpt-o1-2024-05-13',
-  'gpt-o3': 'gpt-o3-2024-07-18',
-  'gpt-o4-mini': 'gpt-o4-mini-2024-07-18',
+  // OpenAI Models - Updated to current versions
+  'gpt-3.5-turbo': 'gpt-3.5-turbo',
+  'gpt-4': 'gpt-4-turbo-preview',
+  'gpt-4o': 'gpt-4o',
+  'gpt-4o-mini': 'gpt-4o-mini',
+  'gpt-4.5': 'gpt-4o-mini',
+  'gpt-o1': 'gpt-o1',
+  'gpt-o3': 'gpt-o3',
+  'gpt-o4-mini': 'gpt-o4-mini',
 
   // Google Models
   'gemini-1.5-pro': 'gemini-1.5-pro-latest',
@@ -583,34 +585,53 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
     }
     // For Claude
     else if (provider.startsWith('claude')) {
-      // Claude may also use SSE format
-      if (chunk.toString().includes('event:')) {
-        const lines = chunk.toString().split('\n')
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            try {
-              const jsonData = line.slice(5).trim()
-              if (jsonData) {
-                const data = JSON.parse(jsonData)
-                return data.delta?.text || ''
-              }
-            } catch (err) {
-              // Skip invalid JSON
-              console.warn('Skipping invalid JSON in Claude stream:', line, err.message)
+      const chunkStr = chunk.toString()
+      // Skip empty chunks
+      if (!chunkStr.trim()) return ''
+
+      let content = ''
+      // Split the chunk into lines (SSE format sends one event per line)
+      const lines = chunkStr.split('\n')
+
+      for (const line of lines) {
+        // Skip empty lines
+        if (!line.trim()) continue
+
+        // Process lines that start with "data: "
+        if (line.startsWith('data:')) {
+          try {
+            const jsonData = line.replace(/^data:\s*/, '').trim()
+            // Skip empty data
+            if (!jsonData) continue
+
+            // Parse the JSON data
+            const data = JSON.parse(jsonData)
+
+            // Handle Claude's content_block_delta events
+            if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
+              const text = data.delta.text || ''
+              content += text
             }
+            // Handle other Claude event types (ignore them but don't error)
+            else if (
+              data.type === 'message_start' ||
+              data.type === 'content_block_start' ||
+              data.type === 'content_block_stop' ||
+              data.type === 'message_delta' ||
+              data.type === 'message_stop' ||
+              data.type === 'ping'
+            ) {
+              // These are control events, not content
+              continue
+            }
+          } catch (err) {
+            // Ignore JSON parse errors for non-JSON lines
+            console.debug('Skipping invalid JSON in Claude stream:', err.message)
           }
         }
-        return ''
-      } else {
-        // Try to parse as direct JSON
-        try {
-          const data = JSON.parse(chunk)
-          return data.delta?.text || ''
-        } catch (err) {
-          console.warn('Failed to parse Claude response as JSON:', err.message)
-          return ''
-        }
       }
+
+      return content
     }
     // For Mistral
     else if (provider === 'mistral-large') {
@@ -623,7 +644,8 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
               const jsonData = line.slice(5).trim()
               if (jsonData) {
                 const data = JSON.parse(jsonData)
-                return data.choices?.[0]?.delta?.content || ''
+                const content = data.choices?.[0]?.delta?.content || ''
+                return content
               }
             } catch (err) {
               // Skip invalid JSON
@@ -636,7 +658,8 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
         // Try to parse as direct JSON
         try {
           const data = JSON.parse(chunk)
-          return data.choices?.[0]?.delta?.content || ''
+          const content = data.choices?.[0]?.delta?.content || ''
+          return content
         } catch (err) {
           console.warn('Failed to parse Mistral response as JSON:', err.message)
           return ''
@@ -670,12 +693,12 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
               const jsonData = line.slice(5).trim()
               if (jsonData) {
                 const data = JSON.parse(jsonData)
-                return (
+                const content =
                   data.choices?.[0]?.delta?.content ||
                   data.delta?.text ||
                   data.content?.[0]?.text ||
                   ''
-                )
+                return content
               }
             } catch (err) {
               // Skip invalid JSON
@@ -690,13 +713,14 @@ export const processStreamChunk = (chunk, provider, version, customModel) => {
       try {
         const data = JSON.parse(chunk)
         // Try to extract from common stream formats
-        return (
+        const content =
           data.choices?.[0]?.delta?.content || data.delta?.text || data.content?.[0]?.text || ''
-        )
+        return content
       } catch (err) {
         // If not valid JSON, it might be a chunk of text
         console.warn('Not valid JSON, treating as raw text chunk:', err.message)
-        return chunk.toString()
+        const text = chunk.toString()
+        return text
       }
     }
   } catch (err) {
@@ -752,6 +776,8 @@ export const streamChatMessage = async (
   const headers = getHeaders(provider, apiKey, customHeaders)
 
   try {
+    // Prod version is hosted on Vercel, which uses a proxy for CORS
+    // In development mode, we use the direct API calls
     if (isDevelopment) {
       console.log('Using direct API call with streaming in development mode')
 
@@ -764,7 +790,9 @@ export const streamChatMessage = async (
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(`API error: ${errorData.message || response.statusText}`)
+        throw new Error(
+          `API error: ${errorData.error?.message || errorData.message || response.statusText}`,
+        )
       }
 
       // Handle streaming based on provider
@@ -833,6 +861,7 @@ export const streamChatMessage = async (
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let fullText = ''
+        let buffer = '' // Buffer for incomplete chunks
 
         try {
           while (true) {
@@ -840,8 +869,28 @@ export const streamChatMessage = async (
             if (done) break
 
             const chunk = decoder.decode(value, { stream: true })
-            const content = processStreamChunk(chunk, provider, version, customModel)
 
+            // Add to buffer and process complete lines
+            buffer += chunk
+
+            // Process complete lines from the buffer
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.trim()) {
+                const content = processStreamChunk(line, provider, version, customModel)
+                if (content) {
+                  fullText += content
+                  onChunk(content)
+                }
+              }
+            }
+          }
+
+          // Process any remaining buffer content
+          if (buffer.trim()) {
+            const content = processStreamChunk(buffer, provider, version, customModel)
             if (content) {
               fullText += content
               onChunk(content)
