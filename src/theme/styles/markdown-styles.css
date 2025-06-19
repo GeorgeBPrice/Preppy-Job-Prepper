@@ -99,8 +99,9 @@
   padding: 0.2rem 0.4rem;
   border-radius: 3px;
   font-size: 0.9em;
-  border: 1px solid rgba(var(--primary-color-rgb, 79, 70, 229), 0.2);
+  border: 1px solid rgba(var(--primary-color-rgb), 0.2);
   white-space: nowrap;
+  color: var(--text-color);
 }
 
 /* Links */
@@ -137,12 +138,77 @@
   position: relative;
   max-height: 500px;
   overflow-y: auto;
+  border: 1px solid var(--border-color);
 }
 
 .markdown-content code {
   font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
   font-size: 0.9rem;
   line-height: 1.5;
+  color: var(--text-color);
+}
+
+/* Enhanced code block styling */
+.markdown-content pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: var(--text-color);
+}
+
+/* Syntax highlighting improvements */
+.markdown-content .token.comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.markdown-content .token.keyword {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.markdown-content .token.string {
+  color: var(--success-color);
+}
+
+.markdown-content .token.number {
+  color: var(--info-color);
+}
+
+.markdown-content .token.function {
+  color: var(--warning-color);
+}
+
+.markdown-content .token.operator {
+  color: var(--text-color);
+}
+
+.markdown-content .token.punctuation {
+  color: var(--text-muted);
+}
+
+.markdown-content .token.class-name {
+  color: var(--info-color);
+}
+
+.markdown-content .token.variable {
+  color: var(--text-color);
+}
+
+.markdown-content .token.property {
+  color: var(--warning-color);
+}
+
+.markdown-content .token.boolean {
+  color: var(--danger-color);
+}
+
+.markdown-content .token.null {
+  color: var(--text-muted);
+}
+
+.markdown-content .token.undefined {
+  color: var(--text-muted);
 }
 
 /* Graphic Styles */

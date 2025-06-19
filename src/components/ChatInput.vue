@@ -103,15 +103,24 @@ watch(
   resize: none;
   background-color: var(--bg-input);
   color: var(--text-color);
-  border-color: var(--border-color);
+  border: 1px solid var(--border-color);
   font-size: 0.95rem;
   line-height: 1.5;
+  transition: all 0.2s ease;
 }
 
 .message-textarea:focus {
   box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
   border-color: var(--primary-color);
   color: var(--text-color);
+  outline: none;
+}
+
+.message-textarea:disabled {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .message-textarea::placeholder {
@@ -119,20 +128,15 @@ watch(
   opacity: 0.6;
 }
 
-/* AI Chatbot specific, style fixes for dark mode */
-:root[data-theme='dark'] .message-textarea {
-  color: #ffffff;
-}
-
-:root[data-theme='dark'] .message-textarea:focus {
-  color: #ffffff;
+.message-textarea:disabled::placeholder {
+  opacity: 0.4;
 }
 
 .send-button {
   position: absolute;
   bottom: 8px;
   right: 10px;
-  background-color: #36bf8d;
+  background-color: var(--primary-color-dark);
   color: white;
   border: none;
   border-radius: 50%;
@@ -146,7 +150,7 @@ watch(
 }
 
 .send-button:hover:not(.btn-disabled) {
-  background-color: var(--primary-color-dark, #4338ca);
+  background-color: var(--primary-color-dark);
   transform: scale(1.05);
 }
 
@@ -155,8 +159,14 @@ watch(
 }
 
 .btn-disabled {
-  background-color: var(--border-color);
+  background-color: var(--text-muted);
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-disabled:hover {
+  transform: none;
+  background-color: var(--text-muted);
 }
 
 .bi {
