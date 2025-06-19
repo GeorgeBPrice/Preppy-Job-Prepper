@@ -2,12 +2,19 @@
 :root {
   /* Light theme colors */
   --primary-color: #4f46e5;
+  --primary-color-rgb: 79, 70, 229;
+  --primary-color-dark: #4338ca;
   --primary-gradient: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
   --secondary-color: #6c757d;
+  --secondary-color-rgb: 108, 117, 125;
   --success-color: #10b981;
+  --success-color-rgb: 16, 185, 129;
   --info-color: #06aed5;
+  --info-color-rgb: 6, 174, 213;
   --warning-color: #f59e0b;
+  --warning-color-rgb: 245, 158, 11;
   --danger-color: #ef4444;
+  --danger-color-rgb: 239, 68, 68;
 
   --text-color: #333333;
   --text-muted: #6c757d;
@@ -19,9 +26,10 @@
   --bg-header: #f8f9fa;
   --bg-card: #fbfbff;
   --bg-card-completed: #eefcf2;
-  --bg-code: #ece9ef;
+  --bg-code: #f6f2ff;
+  --bg-input: #ffffff;
   --bg-exercise: #ece9ef;
-  --bg-code-example: #ece9ef;
+  --bg-code-example: #f6f2ff;
   --bs-body-bg: #ffffff;
   --bg-congrats: rgba(255, 255, 255, 0.9);
 
@@ -49,17 +57,24 @@
 
 /* Dark Theme Colors */
 [data-theme='dark'] {
-  --primary-color: #f0f0ff;
+  --primary-color: #d3d4ff;
+  --primary-color-rgb: 99, 102, 241;
+  --primary-color-dark: #4f46e5;
   --primary-gradient: linear-gradient(90deg, #6366f1 0%, #9333ea 100%);
   --secondary-color: #9ca3af;
+  --secondary-color-rgb: 156, 163, 175;
   --success-color: #22c55e;
+  --success-color-rgb: 34, 197, 94;
   --info-color: #0ea5e9;
+  --info-color-rgb: 14, 165, 233;
   --warning-color: #f59e0b;
+  --warning-color-rgb: 245, 158, 11;
   --danger-color: #ef4444;
+  --danger-color-rgb: 239, 68, 68;
 
-  --text-color: #e4dce6;
+  --text-color: #f3f4f6;
   --text-muted: #9ca3af;
-  --text-light: #f3f4f6;
+  --text-light: #ffffff;
 
   --bg-color: #111827;
   --bg-content: #181d29;
@@ -67,9 +82,10 @@
   --bg-header: #1f2937;
   --bg-card: #1f2937;
   --bg-card-completed: #142c2a;
-  --bg-code: #000000;
+  --bg-code: #2a2262;
+  --bg-input: #374151;
   --bg-exercise: #2d3748;
-  --bg-code-example: #000000;
+  --bg-code-example: #2a2262;
   --bs-body-bg: #171f2d;
   --bg-congrats: rgba(23, 31, 45, 0.96);
 
@@ -273,20 +289,22 @@ h3.gradient-text {
 /* Dark mode specific overrides */
 .dark-mode code {
   background-color: var(--bg-code);
-  color: #c6c3f9;
-  font-size: medium;
+  color: var(--text-color);
+  /* border: 1px solid var(--border-color); */
 }
 
 .dark-mode pre {
   background-color: var(--bg-code);
+  border: 1px solid var(--border-color);
 }
 
 .dark-mode .code-block {
   background-color: var(--bg-code);
+  border: 1px solid var(--border-color);
 }
 
 .dark-mode .progress-bar {
-  background: linear-gradient(90deg, #6366f1, #9333ea);
+  background: var(--primary-gradient);
 }
 
 /* Lesson content styling */
@@ -324,4 +342,83 @@ html[data-theme='dark'] .app-container {
 body.dark-mode .main-content,
 html[data-theme='dark'] .main-content {
   background-color: #111827;
+}
+
+/* AI Chat specific improvements */
+.chat-message {
+  transition: background-color var(--transition-speed) ease;
+}
+
+.chat-message.user-message {
+  background-color: rgba(var(--primary-color-rgb), 0.08);
+  border: 1px solid rgba(var(--primary-color-rgb), 0.1);
+}
+
+.chat-message.assistant-message {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+.chat-message.system-message {
+  background-color: rgba(var(--warning-color-rgb), 0.1);
+  border: 1px solid rgba(var(--warning-color-rgb), 0.2);
+}
+
+/* Input field improvements */
+input,
+textarea,
+select {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
+  outline: none;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Button improvements */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Form control improvements */
+.form-control {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  background-color: var(--bg-input);
+  color: var(--text-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
+}
+
+.form-control:disabled {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
 }

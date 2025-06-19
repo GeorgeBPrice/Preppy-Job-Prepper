@@ -210,19 +210,22 @@ const formattedContent = computed(() => {
 
 :deep(.markdown-content) {
   font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 :deep(.markdown-content pre) {
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: var(--bg-code);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
   margin: 10px 0;
+  border: 1px solid var(--border-color);
 }
 
 :deep(.markdown-content code) {
   font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
   font-size: 0.9em;
+  color: var(--text-color);
 }
 
 :deep(.markdown-content p) {
@@ -241,6 +244,7 @@ const formattedContent = computed(() => {
 :deep(.markdown-content h4) {
   margin-top: 15px;
   margin-bottom: 10px;
+  color: var(--text-color);
 }
 
 :deep(.markdown-content .md-inline-code) {
@@ -249,6 +253,46 @@ const formattedContent = computed(() => {
   border-radius: 3px;
   font-size: 0.9em;
   border: 1px solid rgba(var(--primary-color-rgb), 0.2);
+  color: var(--text-color);
+}
+
+/* Enhanced code block styling */
+:deep(.markdown-content pre code) {
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: var(--text-color);
+}
+
+/* Syntax highlighting improvements */
+:deep(.markdown-content .token.comment) {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+:deep(.markdown-content .token.keyword) {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+:deep(.markdown-content .token.string) {
+  color: var(--success-color);
+}
+
+:deep(.markdown-content .token.number) {
+  color: var(--info-color);
+}
+
+:deep(.markdown-content .token.function) {
+  color: var(--warning-color);
+}
+
+:deep(.markdown-content .token.operator) {
+  color: var(--text-color);
+}
+
+:deep(.markdown-content .token.punctuation) {
+  color: var(--text-muted);
 }
 
 /* Streaming message styles */
@@ -270,5 +314,37 @@ const formattedContent = computed(() => {
 :deep(.streaming-italic) {
   font-style: italic;
   color: var(--text-muted);
+}
+
+/* Dark mode specific improvements */
+:root[data-theme='dark'] :deep(.markdown-content pre) {
+  background-color: #1e293b;
+  border-color: #374151;
+}
+
+:root[data-theme='dark'] :deep(.markdown-content .md-inline-code) {
+  background-color: #374151;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+:root[data-theme='dark'] :deep(.streaming-code) {
+  background-color: #374151;
+  border-color: #4b5563;
+}
+
+/* Light mode specific improvements */
+:root[data-theme='light'] :deep(.markdown-content pre) {
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+}
+
+:root[data-theme='light'] :deep(.markdown-content .md-inline-code) {
+  background-color: #f1f3f4;
+  border-color: rgba(79, 70, 229, 0.2);
+}
+
+:root[data-theme='light'] :deep(.streaming-code) {
+  background-color: #f1f3f4;
+  border-color: #dee2e6;
 }
 </style>

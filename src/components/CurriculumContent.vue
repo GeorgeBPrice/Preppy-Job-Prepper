@@ -79,7 +79,10 @@
 
         <div v-if="sectionContent.exercise" class="exercise">
           <h5>Prep Exercise:</h5>
-          <p>{{ sectionContent.exercise.instructions }}</p>
+          <div
+            v-html="parseExerciseInstructions(sectionContent.exercise.instructions)"
+            class="exercise-instructions"
+          ></div>
         </div>
       </div>
 
@@ -381,6 +384,63 @@ onUpdated(() => {
     addCopyButtonsToExplanationCode()
   })
 })
+
+// Function to parse exercise instructions and convert numbered lists and structured content into proper HTML lists for better readability
+const parseExerciseInstructions = (instructions) => {
+  if (!instructions) return ''
+
+  let parsedText = instructions
+
+  // First, let's handle the specific case of parenthesized numbers like "(1)", "(2)", etc.
+  // We'll temporarily replace them with a unique marker to avoid conflicts
+  const parenthesizedNumbers = []
+  let counter = 0
+
+  parsedText = parsedText.replace(/\((\d+)\)/g, (match, number) => {
+    const marker = `__PARENTHESIZED_${counter}__`
+    parenthesizedNumbers[counter] = `(${number})`
+    counter++
+    return marker
+  })
+
+  // Now convert numbered lists with patterns like "1)", "2)", "1.", "2.", etc.
+  parsedText = parsedText.replace(/(\d+[).])\s+/g, '<li>$1 ')
+
+  // Convert bullet points with patterns like "•", "-", "*"
+  parsedText = parsedText.replace(/^[\s]*[•\-*]\s+/gm, '<li>')
+
+  // Restore the parenthesized numbers and convert them to list items
+  parenthesizedNumbers.forEach((number, index) => {
+    const marker = `__PARENTHESIZED_${index}__`
+    parsedText = parsedText.replace(marker, `<li>${number} `)
+  })
+
+  // Handle cases where list items don't have closing tags (common in instructions)
+  parsedText = parsedText.replace(/(<li>.*?)(?=<li>|$)/gs, '$1</li>')
+
+  // Wrap consecutive list items in <ul> tags
+  parsedText = parsedText.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>')
+
+  // Convert line breaks to paragraphs for better structure
+  parsedText = parsedText.replace(/\n\n+/g, '</p><p>')
+
+  // Wrap the entire content in paragraphs if not already wrapped
+  if (!parsedText.startsWith('<p>') && !parsedText.startsWith('<ul>')) {
+    parsedText = '<p>' + parsedText + '</p>'
+  }
+
+  // Clean up any double-wrapped paragraphs
+  parsedText = parsedText.replace(/<p><p>/g, '<p>')
+  parsedText = parsedText.replace(/<\/p><\/p>/g, '</p>')
+
+  // Handle special cases where instructions start with "Implement:" or similar
+  parsedText = parsedText.replace(/(Implement:|Create:|Using.*?:)\s*/gi, '<strong>$1</strong><br>')
+
+  // Convert any remaining line breaks to <br> tags
+  parsedText = parsedText.replace(/\n/g, '<br>')
+
+  return parsedText
+}
 </script>
 
 <style scoped>
@@ -476,7 +536,7 @@ onUpdated(() => {
 .section-nav-label {
   font-weight: 500;
   color: var(--text-muted);
-  margin-right: 8px;
+  margin: 0 0 5px;
   white-space: nowrap;
 }
 
@@ -653,8 +713,9 @@ onUpdated(() => {
   background-color: var(--bg-code-example);
   padding: 1rem;
   border-radius: 8px;
-  border-left: 4px solid #cd5c5c;
+  border-left: 4px solid #6366f1;
   position: relative;
+  box-shadow: var(--shadow-sm);
 }
 
 .code-example h5 {
@@ -664,14 +725,236 @@ onUpdated(() => {
   font-weight: 600;
 }
 
-.code-wrapper {
-  position: relative;
+/* Enhanced code styling for code-example */
+.code-example :deep(pre) {
+  background-color: var(--bg-code);
+  padding: 1rem;
   border-radius: 6px;
-  overflow: hidden;
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
-.code-wrapper code {
-  color: #e4e4e4;
+.code-example :deep(code) {
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-color);
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+/* Syntax highlighting for code-example with blues and purples */
+.code-example :deep(.token.comment) {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.code-example :deep(.token.keyword) {
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.code-example :deep(.token.string) {
+  color: #3b82f6;
+}
+
+.code-example :deep(.token.number) {
+  color: #8b5cf6;
+}
+
+.code-example :deep(.token.function) {
+  color: #06b6d4;
+}
+
+.code-example :deep(.token.operator) {
+  color: var(--text-color);
+}
+
+.code-example :deep(.token.punctuation) {
+  color: #6b7280;
+}
+
+.code-example :deep(.token.class-name) {
+  color: #8b5cf6;
+}
+
+.code-example :deep(.token.variable) {
+  color: var(--text-color);
+}
+
+.code-example :deep(.token.property) {
+  color: #06b6d4;
+}
+
+.code-example :deep(.token.boolean) {
+  color: #10b981;
+}
+
+.code-example :deep(.token.null) {
+  color: #6b7280;
+}
+
+.code-example :deep(.token.undefined) {
+  color: #6b7280;
+}
+
+.code-example :deep(.token.regex) {
+  color: #ec4899;
+}
+
+.code-example :deep(.token.template-string) {
+  color: #3b82f6;
+}
+
+.code-example :deep(.token.template-punctuation) {
+  color: #6b7280;
+}
+
+/* Dark mode specific improvements for code-example */
+:root[data-theme='dark'] .code-example {
+  background-color: #1e293b;
+  border-left-color: #6366f1;
+}
+
+:root[data-theme='dark'] .code-example :deep(pre) {
+  background-color: #0f172a;
+  border-color: #374151;
+}
+
+:root[data-theme='dark'] .code-example :deep(code) {
+  color: #f3f4f6;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.comment) {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.keyword) {
+  color: #818cf8;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.string) {
+  color: #60a5fa;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.number) {
+  color: #a78bfa;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.function) {
+  color: #22d3ee;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.punctuation) {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.class-name) {
+  color: #a78bfa;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.property) {
+  color: #22d3ee;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.boolean) {
+  color: #34d399;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.null) {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.undefined) {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.regex) {
+  color: #f472b6;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.template-string) {
+  color: #60a5fa;
+}
+
+:root[data-theme='dark'] .code-example :deep(.token.template-punctuation) {
+  color: #9ca3af;
+}
+
+/* Light mode specific improvements for code-example */
+:root[data-theme='light'] .code-example {
+  background-color: #f8fafc;
+  border-left-color: #6366f1;
+}
+
+:root[data-theme='light'] .code-example :deep(pre) {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme='light'] .code-example :deep(code) {
+  color: #1e293b;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.comment) {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.keyword) {
+  color: #4f46e5;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.string) {
+  color: #2563eb;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.number) {
+  color: #7c3aed;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.function) {
+  color: #0891b2;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.punctuation) {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.class-name) {
+  color: #7c3aed;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.property) {
+  color: #0891b2;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.boolean) {
+  color: #059669;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.null) {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.undefined) {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.regex) {
+  color: #db2777;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.template-string) {
+  color: #2563eb;
+}
+
+:root[data-theme='light'] .code-example :deep(.token.template-punctuation) {
+  color: #64748b;
 }
 
 .exercise {
@@ -688,6 +971,35 @@ onUpdated(() => {
   margin-top: 0;
   margin-bottom: 0.75rem;
   font-weight: 600;
+}
+
+.exercise-instructions {
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+.exercise-instructions :deep(p) {
+  margin-bottom: 0.5rem;
+}
+
+.exercise-instructions :deep(strong) {
+  font-weight: 600;
+}
+
+.exercise-instructions :deep(ul) {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  list-style-type: none;
+}
+
+.exercise-instructions :deep(li) {
+  margin-bottom: 0;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+.exercise-instructions :deep(br) {
+  margin-bottom: 0;
 }
 
 .starter-code {

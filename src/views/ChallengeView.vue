@@ -61,146 +61,166 @@
         </div>
       </div>
 
-      <!-- AI Configuration section -->
-      <div class="ai-config-section">
-        <h3>AI Code Review Settings</h3>
-
-        <!-- Warning notice -->
-        <div class="ai-config-warning">
-          <p>
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <strong>Important:</strong> API keys are stored in your browser's localStorage and are
-            used to make requests to AI providers. Lesson grading requests are routed through our
-            proxy server for security, and your API key is only used in-memory. By using this
-            feature, you accept our Terms and Conditions and acknowledge that you use this
-            functionality at your own risk.
-            <TermsAndConditions />
-          </p>
-          <div v-if="!aiStore.termsAccepted" class="mt-2">
-            <button @click="acceptTermsInline" class="btn btn-sm btn-warning">
-              Accept Terms to Continue
-            </button>
-          </div>
-        </div>
-
-        <!-- Error message display -->
-        <div class="alert alert-danger" v-if="aiStore.error">
-          <i class="bi bi-exclamation-triangle-fill me-2"></i>
-          {{ aiStore.error }}
-        </div>
-
-        <div class="config-row">
-          <div class="config-item">
-            <label for="ai-provider" class="form-label">AI Provider</label>
-            <select
-              id="ai-provider"
-              v-model="aiStore.provider"
-              class="form-select"
-              @change="handleProviderChange"
-            >
-              <option
-                v-for="provider in aiStore.availableProviders"
-                :key="provider.value"
-                :value="provider.value"
-              >
-                {{ provider.label }}
-              </option>
-            </select>
-          </div>
-
-          <div class="config-item" v-if="aiStore.isCustomProvider">
-            <label for="custom-endpoint" class="form-label">API Endpoint</label>
-            <input
-              id="custom-endpoint"
-              type="text"
-              v-model="customEndpoint"
-              class="form-control"
-              placeholder="https://api.example.com/v1/chat"
-            />
-          </div>
-
-          <div class="config-item" v-if="aiStore.isCustomProvider">
-            <label for="custom-model" class="form-label">Model Name</label>
-            <input
-              id="custom-model"
-              type="text"
-              v-model="customModel"
-              class="form-control"
-              placeholder="model-name"
-            />
-          </div>
-
-          <div class="config-item" v-else>
-            <label for="ai-version" class="form-label">Model Version</label>
-            <input
-              id="ai-version"
-              type="text"
-              v-model="modelVersion"
-              class="form-control"
-              placeholder="latest"
-            />
-          </div>
-
-          <div class="config-item api-key-input" v-if="aiStore.provider !== 'ollama'">
-            <label for="api-key" class="form-label">API Key</label>
-            <input
-              id="api-key"
-              type="password"
-              v-model="apiKey"
-              class="form-control"
-              placeholder="Your API Key"
-            />
-          </div>
-
-          <div class="config-item config-button-item">
-            <label class="form-label invisible">Action</label>
-            <button
-              @click="saveAIConfig"
-              class="btn"
-              :class="configButtonClass"
-              :disabled="aiStore.provider !== 'ollama' && !apiKey"
-            >
-              <span v-if="isTestingConnection">
-                <span
-                  class="spinner-border spinner-border-sm me-2"
-                  role="status"
-                  aria-hidden="true"
-                ></span>
-                Testing...
-              </span>
-              <span v-else>
-                {{ configSaveStatus || 'Save Config' }}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Custom Headers for advanced users -->
-        <div class="config-row mt-3" v-if="aiStore.isCustomProvider">
-          <div class="config-item" style="flex: 1">
-            <label for="custom-headers" class="form-label">
-              Custom Headers (optional, JSON format)
-              <i
-                class="bi bi-info-circle"
-                title="Provide custom headers in JSON format, e.g. { 'Authorization': 'Bearer YOUR_KEY' }"
-              ></i>
-            </label>
-            <textarea
-              id="custom-headers"
-              v-model="customHeaders"
-              class="form-control"
-              placeholder='{ "Content-Type": "application/json", "Authorization": "Bearer YOUR_KEY" }'
-              rows="3"
-            ></textarea>
-          </div>
-        </div>
-      </div>
-
       <CodeEditor
         :sectionId="Number(sectionId)"
         :isChallenge="true"
         @code-graded="handleCodeGraded"
       />
+
+      <!-- AI Configuration section -->
+      <div class="ai-config-section">
+        <div
+          class="ai-config-header"
+          @click="toggleAIConfig"
+          @keydown.enter="toggleAIConfig"
+          @keydown.space="toggleAIConfig"
+          tabindex="0"
+          role="button"
+          :aria-expanded="aiConfigExpanded"
+          aria-label="Toggle AI Code Review Settings"
+        >
+          <div class="ai-config-title">
+            <i class="bi bi-gear-fill me-2"></i>
+            <h3>Configure AI Code Reviewer</h3>
+          </div>
+          <i
+            class="bi ai-config-toggle"
+            :class="aiConfigExpanded ? 'bi-chevron-up' : 'bi-chevron-down'"
+          ></i>
+        </div>
+
+        <div class="ai-config-content" :class="{ collapsed: !aiConfigExpanded }">
+          <!-- Warning notice -->
+          <div class="ai-config-warning">
+            <p>
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <strong>Important:</strong> API keys are stored in your browser's localStorage and are
+              used to make requests to AI providers. Lesson grading requests are routed through our
+              proxy server for security, and your API key is only used in-memory. By using this
+              feature, you accept our Terms and Conditions and acknowledge that you use this
+              functionality at your own risk.
+              <TermsAndConditions />
+            </p>
+            <div v-if="!aiStore.termsAccepted" class="mt-2">
+              <button @click="acceptTermsInline" class="btn btn-sm btn-warning">
+                Accept Terms to Continue
+              </button>
+            </div>
+          </div>
+
+          <!-- Error message display -->
+          <div class="alert alert-danger" v-if="aiStore.error">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            {{ aiStore.error }}
+          </div>
+
+          <div class="config-row">
+            <div class="config-item">
+              <label for="ai-provider" class="form-label">AI Provider</label>
+              <select
+                id="ai-provider"
+                v-model="aiStore.provider"
+                class="form-select"
+                @change="handleProviderChange"
+              >
+                <option
+                  v-for="provider in aiStore.availableProviders"
+                  :key="provider.value"
+                  :value="provider.value"
+                >
+                  {{ provider.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="config-item" v-if="aiStore.isCustomProvider">
+              <label for="custom-endpoint" class="form-label">API Endpoint</label>
+              <input
+                id="custom-endpoint"
+                type="text"
+                v-model="customEndpoint"
+                class="form-control"
+                placeholder="https://api.example.com/v1/chat"
+              />
+            </div>
+
+            <div class="config-item" v-if="aiStore.isCustomProvider">
+              <label for="custom-model" class="form-label">Model Name</label>
+              <input
+                id="custom-model"
+                type="text"
+                v-model="customModel"
+                class="form-control"
+                placeholder="model-name"
+              />
+            </div>
+
+            <div class="config-item" v-else>
+              <label for="ai-version" class="form-label">Model Version</label>
+              <input
+                id="ai-version"
+                type="text"
+                v-model="modelVersion"
+                class="form-control"
+                placeholder="latest"
+              />
+            </div>
+
+            <div class="config-item api-key-input" v-if="aiStore.provider !== 'ollama'">
+              <label for="api-key" class="form-label">API Key</label>
+              <input
+                id="api-key"
+                type="password"
+                v-model="apiKey"
+                class="form-control"
+                placeholder="Your API Key"
+              />
+            </div>
+
+            <div class="config-item config-button-item">
+              <label class="form-label invisible">Action</label>
+              <button
+                @click="saveAIConfig"
+                class="btn"
+                :class="configButtonClass"
+                :disabled="aiStore.provider !== 'ollama' && !apiKey"
+              >
+                <span v-if="isTestingConnection">
+                  <span
+                    class="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Testing...
+                </span>
+                <span v-else>
+                  {{ configSaveStatus || 'Save Config' }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Headers for advanced users -->
+          <div class="config-row mt-3" v-if="aiStore.isCustomProvider">
+            <div class="config-item" style="flex: 1">
+              <label for="custom-headers" class="form-label">
+                Custom Headers (optional, JSON format)
+                <i
+                  class="bi bi-info-circle"
+                  title="Provide custom headers in JSON format, e.g. { 'Authorization': 'Bearer YOUR_KEY' }"
+                ></i>
+              </label>
+              <textarea
+                id="custom-headers"
+                v-model="customHeaders"
+                class="form-control"
+                placeholder='{ "Content-Type": "application/json", "Authorization": "Bearer YOUR_KEY" }'
+                rows="3"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- AI Response section -->
       <div
@@ -281,6 +301,7 @@ const currentCurriculum = ref([])
 const customModel = ref('')
 const customEndpoint = ref('')
 const customHeaders = ref('')
+const aiConfigExpanded = ref(false)
 
 // Load curriculum for the current topic
 const loadCurriculum = async () => {
@@ -618,6 +639,11 @@ const listenForTermsAcceptance = () => {
   })
 }
 
+// Toggle AI configuration section
+const toggleAIConfig = () => {
+  aiConfigExpanded.value = !aiConfigExpanded.value
+}
+
 onMounted(async () => {
   // Load challenge content
   await loadContent()
@@ -766,48 +792,155 @@ watch(
 }
 
 .starter-code {
-  background-color: var(--bg-code-example);
-  padding: 15px;
-  border-radius: 5px;
+  background-color: var(--bg-card);
+  padding: 15px 20px;
+  border-radius: 8px;
   margin-bottom: 30px;
   border: 1px solid var(--border-color);
   transition: all var(--transition-speed) ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .starter-code h3 {
   color: var(--text-color);
-  margin-bottom: 15px;
+  margin-bottom: 10px;
+  font-weight: 600;
 }
 
 .code-wrapper {
   position: relative;
   border-radius: 6px;
   overflow: hidden;
+  background-color: var(--bg-code);
+  border: 1px solid var(--border-color);
+}
+
+.scrollable-code {
+  background-color: var(--bg-code);
+  color: var(--text-color);
+  padding: 12px 15px;
+  margin: 0;
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow-x: auto;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(var(--primary-color-rgb), 0.9);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+}
+
+.code-copy-btn:hover {
+  background-color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+.code-copy-btn:active {
+  transform: scale(0.95);
 }
 
 .ai-config-section {
   margin: 30px 0;
-  padding: 20px;
+  padding: 0;
   background-color: var(--bg-card);
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
+  transition: all var(--transition-speed) ease;
+  overflow: hidden;
 }
 
-.ai-config-section h3 {
-  margin-bottom: 20px;
-  padding-bottom: 10px;
+.ai-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  background-color: var(--bg-sidebar);
   border-bottom: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+  user-select: none;
+  outline: none;
+}
+
+.ai-config-header:hover {
+  background-color: var(--hover-color);
+}
+
+.ai-config-header:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.ai-config-header:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.ai-config-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-config-title h3 {
+  margin: 0;
   color: var(--text-color);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.ai-config-title i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+.ai-config-toggle {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  transition: transform 0.2s ease;
+}
+
+.ai-config-toggle:hover {
+  color: var(--text-color);
+}
+
+.ai-config-content {
+  padding: 25px;
+  background-color: var(--bg-card);
+  transition: all 0.3s ease;
+  max-height: 2000px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.ai-config-content.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
 }
 
 .ai-config-warning {
   margin-bottom: 20px;
-  padding: 10px 15px;
-  background-color: rgba(var(--warning-color-rgb, 255, 193, 7), 0.1);
+  padding: 15px;
+  background-color: rgba(var(--warning-color-rgb), 0.1);
   border-left: 4px solid var(--warning-color);
   border-radius: 4px;
   font-size: 0.9rem;
+  color: var(--text-color);
 }
 
 .config-row {
@@ -839,12 +972,15 @@ watch(
   color: var(--text-color);
 }
 
-/* Dark mode fixes for form controls */
+/* Enhanced form control styling */
 :deep(.form-control),
 :deep(.form-select) {
   background-color: var(--bg-input);
   color: var(--text-color);
-  border-color: var(--border-color);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  padding: 8px 12px;
 }
 
 :deep(.form-select) {
@@ -863,12 +999,81 @@ watch(
   color: var(--text-color);
   border-color: var(--primary-color);
   box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
+  outline: none;
 }
 
 :deep(.form-control::placeholder),
 :deep(.form-select::placeholder) {
   color: var(--text-muted);
   opacity: 0.6;
+}
+
+:deep(.form-control:disabled),
+:deep(.form-select:disabled) {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Button improvements */
+:deep(.btn) {
+  transition: all 0.2s ease;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+:deep(.btn:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:deep(.btn-warning) {
+  background-color: var(--warning-color);
+  border-color: var(--warning-color);
+  color: white;
+}
+
+:deep(.btn-warning:hover:not(:disabled)) {
+  background-color: #d97706;
+  border-color: #d97706;
+  transform: translateY(-1px);
+}
+
+:deep(.btn-danger) {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+}
+
+:deep(.btn-danger:hover:not(:disabled)) {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+}
+
+:deep(.btn-success) {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+:deep(.btn-success:hover:not(:disabled)) {
+  background-color: #059669;
+  border-color: #059669;
+  transform: translateY(-1px);
+}
+
+:deep(.btn-secondary) {
+  background-color: var(--secondary-color);
+  border-color: var(--secondary-color);
+  color: white;
+}
+
+:deep(.btn-secondary:hover:not(:disabled)) {
+  background-color: #5a6268;
+  border-color: #5a6268;
+  transform: translateY(-1px);
 }
 
 @media (max-width: 768px) {
@@ -889,11 +1094,12 @@ watch(
 
 .ai-response-section {
   margin: 30px 0 40px;
-  padding: 20px;
+  padding: 25px;
   background-color: var(--bg-card);
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
+  transition: all var(--transition-speed) ease;
 }
 
 .ai-response-section h3 {
@@ -901,6 +1107,7 @@ watch(
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-color);
+  font-weight: 600;
 }
 
 .loading-response {
@@ -909,16 +1116,20 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 30px;
+  color: var(--text-color);
 }
 
 .response-content {
   max-height: 600px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px;
+  padding: 15px;
   line-height: 1.6;
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
+  background-color: var(--bg-content);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
 }
 
 .response-content::-webkit-scrollbar {
@@ -944,15 +1155,131 @@ watch(
   padding-top: 10px;
   border-top: 1px solid var(--border-color);
   text-align: right;
+  color: var(--text-muted);
 }
 
 .form-check-input {
-  background-color: var(--bg-content);
+  background-color: var(--bg-input);
   border-color: var(--border-color);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .form-check-label {
   color: var(--text-color);
+}
+
+/* Enhanced markdown content styling */
+.markdown-content :deep(.md-inline-code) {
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  background-color: var(--bg-code);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+  border: 1px solid rgba(var(--primary-color-rgb), 0.2);
+  color: var(--text-color);
+}
+
+.markdown-content :deep(pre) {
+  background-color: var(--bg-code);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 15px;
+  overflow-x: auto;
+  margin: 15px 0;
+}
+
+.markdown-content :deep(code) {
+  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+/* Enhanced title spacing for AI response section */
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  margin-top: 30px;
+  margin-bottom: 15px;
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.markdown-content :deep(h1:first-child),
+.markdown-content :deep(h2:first-child),
+.markdown-content :deep(h3:first-child),
+.markdown-content :deep(h4:first-child),
+.markdown-content :deep(h5:first-child),
+.markdown-content :deep(h6:first-child) {
+  margin-top: 15px;
+}
+
+.markdown-content :deep(p) {
+  margin-bottom: 15px;
+  line-height: 1.6;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin-bottom: 15px;
+  padding-left: 20px;
+}
+
+.markdown-content :deep(li) {
+  margin-bottom: 8px;
+}
+
+/* Dark mode specific improvements */
+:root[data-theme='dark'] .scrollable-code {
+  background-color: #0f172a;
+  color: #f3f4f6;
+}
+
+:root[data-theme='dark'] .markdown-content :deep(pre) {
+  background-color: #0f172a;
+  border-color: #374151;
+}
+
+:root[data-theme='dark'] .markdown-content :deep(code) {
+  color: #f3f4f6;
+}
+
+/* Remove unwanted borders on code lines in dark mode */
+:root[data-theme='dark'] .markdown-content :deep(.token) {
+  border: none;
+}
+
+:root[data-theme='dark'] .scrollable-code .token {
+  border: none;
+}
+
+/* Light mode specific improvements */
+:root[data-theme='light'] .scrollable-code {
+  background-color: #ffffff;
+}
+
+:root[data-theme='light'] .markdown-content :deep(pre) {
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+}
+
+:root[data-theme='light'] .markdown-content :deep(code) {
+  color: #333333;
+}
+
+/* Alert styling improvements */
+.alert-danger {
+  background-color: rgba(var(--danger-color-rgb), 0.1);
+  border: 1px solid rgba(var(--danger-color-rgb), 0.2);
+  color: var(--danger-color);
+  border-radius: 6px;
+  padding: 15px;
 }
 
 @media (max-width: 768px) {
@@ -981,44 +1308,5 @@ watch(
   .float-end {
     float: none !important;
   }
-}
-
-/* some markdown styles for AI Code-Review section */
-
-.markdown-content :deep(.md-inline-code) {
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  background-color: var(--bg-code);
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-size: 0.9em;
-  border: 1px solid rgba(var(--primary-color-rgb, 79, 70, 229), 0.2);
-}
-
-html[data-theme='dark'] .alert-danger,
-body.dark-mode .alert-danger {
-  background-color: rgba(220, 53, 69, 0.2);
-  color: #ea868f;
-  border-color: rgba(220, 53, 69, 0.3);
-}
-
-html[data-theme='light'] .markdown-content :deep(pre),
-body.dark-mode .markdown-content :deep(pre) {
-  background-color: #1f0527;
-}
-
-html[data-theme='dark'] .markdown-content :deep(pre),
-body.dark-mode .markdown-content :deep(pre) {
-  background-color: #1b0329;
-}
-
-html[data-theme='dark'] .markdown-content :deep(code),
-body.dark-mode .markdown-content :deep(code) {
-  color: #e4e4e4;
-  text-shadow: none;
-}
-
-html[data-theme='dark'] .scrollable-code,
-body.dark-mode .scrollable-code {
-  background-color: #0f0f28;
 }
 </style>
