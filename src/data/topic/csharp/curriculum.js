@@ -3,12 +3,12 @@
 // Import all curriculum sections
 import section1 from './sections/curriculum-section1.js'
 import section2 from './sections/curriculum-section2.js'
-// import section3 from './sections/curriculum-section3.js'
-// import section4 from './sections/curriculum-section4.js'
-// import section5 from './sections/curriculum-section5.js'
-// import section6 from './sections/curriculum-section6.js'
-// import section7 from './sections/curriculum-section7.js'
-// import section8 from './sections/curriculum-section8.js'
+import section3 from './sections/curriculum-section3.js'
+import section4 from './sections/curriculum-section4.js'
+import section5 from './sections/curriculum-section5.js'
+import section6 from './sections/curriculum-section6.js'
+import section7 from './sections/curriculum-section7.js'
+import section8 from './sections/curriculum-section8.js'
 
 // Import shortlist curriculum
 import shortlistPrepper from './sections/curriculum-section-shortlist.js'
@@ -17,12 +17,12 @@ import shortlistPrepper from './sections/curriculum-section-shortlist.js'
 export const curriculum = [
   section1,
   section2,
-  // section3,
-  // section4,
-  // section5,
-  // section6,
-  // section7,
-  // section8,
+  section3,
+  section4,
+  section5,
+  section6,
+  section7,
+  section8,
 ]
 
 // Export shortlist curriculum
@@ -32,12 +32,12 @@ export const shortlistCurriculum = [shortlistPrepper]
 export {
   section1 as csharpFundamentals,
   section2 as objectOrientedProgramming,
-  // section3 as advancedCSharpFeatures,
-  // section4 as memoryManagementAndPerformance,
-  // section5 as aspNetCoreFundamentals,
-  // section6 as buildingWebAPIs,
-  // section7 as dataAccessWithEFCore,
-  // section8 as dotNetCoreApplicationDevelopment,
+  section3 as advancedCSharpFeatures,
+  section4 as memoryManagementAndPerformance,
+  section5 as aspNetCoreFundamentals,
+  section6 as buildingWebAPIs,
+  section7 as dataAccessWithEFCore,
+  section8 as dotNetCoreApplicationDevelopment,
 }
 
 // Helper function to get a specific section by index (1-based)
