@@ -47,18 +47,7 @@
 
       <div class="starter-code" v-if="section.challenge.starterCode">
         <h3>Starter Code</h3>
-        <div class="code-wrapper">
-          <pre
-            class="scrollable-code"
-          ><code class="language-javascript" v-html="highlightedCode(section.challenge.starterCode)"></code></pre>
-          <div
-            class="code-copy-btn"
-            @click="copyCode(section.challenge.starterCode)"
-            title="Copy code"
-          >
-            <i class="bi bi-clipboard"></i>
-          </div>
-        </div>
+        <CodeExample :code="section.challenge.starterCode" />
       </div>
 
       <CodeEditor
@@ -279,6 +268,7 @@ import { getSection, getCurrentCurriculum } from '../utils/curriculumLoader'
 import { useAIStore } from '../store/ai'
 import CodeEditor from '../components/CodeEditor.vue'
 import BackToTop from '../components/BackToTop.vue'
+import CodeExample from '../components/CodeExample.vue'
 import Prism from 'prismjs'
 import { validateApiKey, testApiConnection, MODEL_MAPPINGS } from '../utils/aiService'
 import { formatMarkdown } from '../theme/markdownFormatter'
@@ -291,7 +281,7 @@ const topicStore = useTopicStore()
 const aiStore = useAIStore()
 const loading = ref(true)
 const isCompleted = ref(false)
-const copySuccess = ref(false)
+
 const apiKey = ref('')
 const configSaveStatus = ref('')
 const isTestingConnection = ref(false)
@@ -374,29 +364,6 @@ const formattedResponse = computed(() => {
   if (!aiStore.lastResponse) return ''
   return formatMarkdown(aiStore.lastResponse)
 })
-
-// Function to highlight code for display
-const highlightedCode = (code) => {
-  return Prism.highlight(code, Prism.languages.javascript, 'javascript')
-}
-
-// Function to copy code to clipboard
-const copyCode = (code) => {
-  navigator.clipboard.writeText(code).then(
-    () => {
-      copySuccess.value = true
-      console.log('Code copied to clipboard')
-
-      // Reset after a brief period
-      setTimeout(() => {
-        copySuccess.value = false
-      }, 2000)
-    },
-    (err) => {
-      console.error('Could not copy code: ', err)
-    },
-  )
-}
 
 // Format date for display
 const formatDateTime = (isoString) => {
