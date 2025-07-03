@@ -507,38 +507,38 @@ public class LogActionFilter : ActionFilterAttribute
     var products = ViewBag.Products as IEnumerable<Product>;
 }
 
-<h1>@greeting, @User.Identity.Name!</h1>
-<p>Current time: @currentTime.ToString("HH:mm:ss")</p>
+&lt;h1&gt;@greeting, @User.Identity.Name!&lt;/h1&gt;
+&lt;p&gt;Current time: @currentTime.ToString("HH:mm:ss")&lt;/p&gt;
 
 @* Conditional rendering *@
 @if (products?.Any() == true)
 {
-    <div class="product-grid">
+    &lt;div class="product-grid"&gt;
         @foreach (var product in products)
         {
-            <div class="product-card">
-                <h3>@product.Name</h3>
-                <p>@product.Description</p>
-                <span class="price">@product.Price.ToString("C")</span>
+            &lt;div class="product-card"&gt;
+                &lt;h3&gt;@product.Name&lt;/h3&gt;
+                &lt;p&gt;@product.Description&lt;/p&gt;
+                &lt;span class="price"&gt;@product.Price.ToString("C")&lt;/span&gt;
                 
                 @* Conditional CSS classes *@
-                <div class="status @(product.IsAvailable ? "available" : "unavailable")">
+                &lt;div class="status @(product.IsAvailable ? "available" : "unavailable")"&gt;
                     @(product.IsAvailable ? "In Stock" : "Out of Stock")
-                </div>
-            </div>
+                &lt;/div&gt;
+            &lt;/div&gt;
         }
-    </div>
+    &lt;/div&gt;
 }
 else
 {
-    <p class="no-products">No products available at this time.</p>
+    &lt;p class="no-products"&gt;No products available at this time.&lt;/p&gt;
 }
 
 @* Using HTML helpers and tag helpers *@
 @using (Html.BeginForm("Search", "Product", FormMethod.Get))
 {
     @Html.TextBox("searchTerm", ViewBag.CurrentSearch, new { @class = "form-control", placeholder = "Search products..." })
-    <button type="submit" class="btn btn-primary">Search</button>
+    &lt;button type="submit" class="btn btn-primary"&gt;Search&lt;/button&gt;
 }
 </code></pre>
         </div>
@@ -556,36 +556,35 @@ else
     Layout = "_Layout";
 }
 
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <h2>@ViewData["Title"]</h2>
-            
+&lt;div class="container"&gt;
+    &lt;div class="row"&gt;
+        &lt;div class="col-md-12"&gt;
+            &lt;h2&gt;@ViewData["Title"]&lt;/h2&gt;
             @* Search form *@
-            <form method="get" class="search-form">
-                <div class="input-group">
-                    <input type="text" name="search" value="@ViewBag.CurrentSearch" 
-                           class="form-control" placeholder="Search products..." />
-                    <select name="category" class="form-select">
-                        <option value="">All Categories</option>
+            &lt;form method="get" class="search-form"&gt;
+                &lt;div class="input-group"&gt;
+                    &lt;input type="text" name="search" value="@ViewBag.CurrentSearch" 
+                           class="form-control" placeholder="Search products..." /&gt;
+                    &lt;select name="category" class="form-select"&gt;
+                        &lt;option value=""&gt;All Categories&lt;/option&gt;
                         @foreach (var category in ViewBag.Categories)
                         {
-                            <option value="@category" selected="@(category == ViewBag.CurrentCategory)">
+                            &lt;option value="@category" selected="@(category == ViewBag.CurrentCategory)"&gt;
                                 @category
-                            </option>
+                            &lt;/option&gt;
                         }
-                    </select>
-                    <button type="submit" class="btn btn-primary">Search</button>
-                </div>
-            </form>
+                    &lt;/select&gt;
+                    &lt;button type="submit" class="btn btn-primary"&gt;Search&lt;/button&gt;
+                &lt;/div&gt;
+            &lt;/form&gt;
             
             @* Product grid using partial views *@
-            <div class="product-grid">
+            &lt;div class="product-grid"&gt;
                 @foreach (var product in Model)
                 {
                     @await Html.PartialAsync("_ProductCard", product)
                 }
-            </div>
+            &lt;/div&gt;
             
             @* Pagination *@
             @await Html.PartialAsync("_Pagination", new PaginationViewModel 
@@ -593,9 +592,9 @@ else
                 CurrentPage = ViewBag.CurrentPage, 
                 TotalPages = ViewBag.TotalPages 
             })
-        </div>
-    </div>
-</div>
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
 </code></pre>
         </div>
 
@@ -606,83 +605,83 @@ else
 
         <div class="code-example">
           <pre><code>@* _Layout.cshtml - Master layout *@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - MyApp</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-</head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">MyApp</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Product" asp-action="Index">Products</a>
-                        </li>
-                    </ul>
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0" /&gt;
+    &lt;title&gt;@ViewData["Title"] - MyApp&lt;/title&gt;
+    &lt;link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" /&gt;
+    &lt;link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header&gt;
+        &lt;nav class="navbar navbar-expand-lg navbar-dark bg-dark"&gt;
+            &lt;div class="container"&gt;
+                &lt;a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index"&gt;MyApp&lt;/a&gt;
+                &lt;button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"&gt;
+                    &lt;span class="navbar-toggler-icon"&gt;&lt;/span&gt;
+                &lt;/button&gt;
+                &lt;div class="collapse navbar-collapse" id="navbarNav"&gt;
+                    &lt;ul class="navbar-nav me-auto"&gt;
+                        &lt;li class="nav-item"&gt;
+                            &lt;a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index"&gt;Home&lt;/a&gt;
+                        &lt;/li&gt;
+                        &lt;li class="nav-item"&gt;
+                            &lt;a class="nav-link" asp-area="" asp-controller="Product" asp-action="Index"&gt;Products&lt;/a&gt;
+                        &lt;/li&gt;
+                    &lt;/ul&gt;
                     @await Html.PartialAsync("_LoginPartial")
-                </div>
-            </div>
-        </nav>
-    </header>
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/nav&gt;
+    &lt;/header&gt;
     
-    <main role="main" class="pb-3">
+    &lt;main role="main" class="pb-3"&gt;
         @RenderBody()
-    </main>
+    &lt;/main&gt;
     
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2024 - MyApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
+    &lt;footer class="border-top footer text-muted"&gt;
+        &lt;div class="container"&gt;
+            &copy; 2024 - MyApp - &lt;a asp-area="" asp-controller="Home" asp-action="Privacy"&gt;Privacy&lt;/a&gt;
+        &lt;/div&gt;
+    &lt;/footer&gt;
     
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    &lt;script src="~/lib/jquery/dist/jquery.min.js"&gt;&lt;/script&gt;
+    &lt;script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"&gt;&lt;/script&gt;
+    &lt;script src="~/js/site.js" asp-append-version="true"&gt;&lt;/script&gt;
     
     @await RenderSectionAsync("Scripts", required: false)
-</body>
-</html>
+&lt;/body&gt;
+&lt;/html&gt;
 
 @* _ProductCard.cshtml - Partial view *@
 @model ProductViewModel
 
-<div class="col-md-4 mb-4">
-    <div class="card h-100">
-        <div class="card-body">
-            <h5 class="card-title">@Model.Name</h5>
-            <p class="card-text">@Model.Description</p>
-            <p class="card-text">
-                <small class="text-muted">Category: @Model.Category</small>
-            </p>
-        </div>
-        <div class="card-footer">
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="h5 mb-0">@Model.FormattedPrice</span>
-                <div class="btn-group">
-                    <a asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id" 
-                       class="btn btn-outline-primary btn-sm">Details</a>
+&lt;div class="col-md-4 mb-4"&gt;
+    &lt;div class="card h-100"&gt;
+        &lt;div class="card-body"&gt;
+            &lt;h5 class="card-title"&gt;@Model.Name&lt;/h5&gt;
+            &lt;p class="card-text"&gt;@Model.Description&lt;/p&gt;
+            &lt;p class="card-text"&gt;
+                &lt;small class="text-muted"&gt;Category: @Model.Category&lt;/small&gt;
+            &lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class="card-footer"&gt;
+            &lt;div class="d-flex justify-content-between align-items-center"&gt;
+                &lt;span class="h5 mb-0"&gt;@Model.FormattedPrice&lt;/span&gt;
+                &lt;div class="btn-group"&gt;
+                    &lt;a asp-controller="Product" asp-action="Details" asp-route-id="@Model.Id" 
+                       class="btn btn-outline-primary btn-sm"&gt;Details&lt;/a&gt;
                     @if (Model.IsAvailable)
                     {
-                        <button type="button" class="btn btn-primary btn-sm">Add to Cart</button>
+                        &lt;button type="button" class="btn btn-primary btn-sm"&gt;Add to Cart&lt;/button&gt;
                     }
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
 </code></pre>
         </div>
 
