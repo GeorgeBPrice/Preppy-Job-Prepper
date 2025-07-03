@@ -5,7 +5,7 @@ export const applyCustomPrismStyling = () => {
   styleElement.textContent = `
     /* Custom Syntax Highlighting for Improved Readability */
     :root {
-      --code-comment: #b3bcc6;
+      --code-comment: #8626fb;
       --code-keyword: #5a67d8;
       --code-function: #3182ce;
       --code-string: #38a169;
@@ -20,7 +20,7 @@ export const applyCustomPrismStyling = () => {
     }
     
     [data-theme='dark'] {
-      --code-comment: #b3bcc6;
+      --code-comment: #c79bfe;
       --code-keyword: #7f9cf5;
       --code-function: #63b3ed;
       --code-string: #68d391;

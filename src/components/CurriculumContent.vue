@@ -59,23 +59,13 @@
         :id="`section-${index}`"
       >
         <h4>{{ sectionContent.title }}</h4>
-        <div v-html="sectionContent.explanation" class="explanation" ref="explanationContent"></div>
+        <div
+          v-html="processedExplanation(sectionContent.explanation)"
+          class="explanation"
+          ref="explanationContent"
+        ></div>
 
-        <div v-if="sectionContent.codeExample" class="code-example">
-          <h5>Interview Focus Examples:</h5>
-          <div class="code-wrapper">
-            <pre
-              class="scrollable-code"
-            ><code class="language-javascript" v-html="highlightedCode(sectionContent.codeExample)"></code></pre>
-            <div
-              class="code-copy-btn"
-              @click="copyCode(sectionContent.codeExample)"
-              title="Copy code"
-            >
-              <i class="bi bi-clipboard"></i>
-            </div>
-          </div>
-        </div>
+        <CodeExample v-if="sectionContent.codeExample" :code="sectionContent.codeExample" />
 
         <div v-if="sectionContent.exercise" class="exercise">
           <h5>Prep Exercise:</h5>
@@ -127,14 +117,7 @@
 
       <div v-if="challenge.starterCode" class="starter-code">
         <h4>Starter Code:</h4>
-        <div class="code-wrapper">
-          <pre
-            class="scrollable-code"
-          ><code class="language-javascript" v-html="highlightedCode(challenge.starterCode)"></code></pre>
-          <div class="code-copy-btn" @click="copyCode(challenge.starterCode)" title="Copy code">
-            <i class="bi bi-clipboard"></i>
-          </div>
-        </div>
+        <CodeExample :code="challenge.starterCode" />
       </div>
     </div>
   </div>
@@ -149,11 +132,17 @@ import { useTopicStore } from '../store/topic'
 import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
 import { getSection, getShortlistSection } from '../utils/curriculumLoader'
+import CodeExample from './CodeExample.vue'
 
 // Custom syntax highlighting styling for better readability
 import 'prismjs/components/prism-javascript'
 import 'prismjs/components/prism-markup'
 import 'prismjs/components/prism-css'
+import 'prismjs/components/prism-csharp'
+import 'prismjs/components/prism-typescript'
+import 'prismjs/components/prism-jsx'
+import 'prismjs/components/prism-python'
+import 'prismjs/components/prism-yaml'
 
 const props = defineProps({
   sectionId: {
@@ -182,6 +171,21 @@ const section = ref(null)
 const lesson = ref(null)
 const challenge = ref(null)
 const loading = ref(true)
+
+// Map topics to PrismJS language identifiers
+const topicLanguageMap = {
+  javascript: 'javascript',
+  csharp: 'csharp',
+  typescript: 'typescript',
+  react: 'jsx',
+  devops: 'yaml',
+  ai: 'python',
+}
+
+// Get current language based on topic
+const currentLanguage = computed(() => {
+  return topicLanguageMap[topicStore.currentTopic] || 'javascript'
+})
 
 // Check if we're on the shortlist route
 const isShortlistRoute = computed(() => {
@@ -293,7 +297,7 @@ const addCopyButtonsToExplanationCode = () => {
       // Add click event
       copyButton.addEventListener('click', () => {
         const codeText = preElement.textContent
-        copyCode(codeText)
+        navigator.clipboard.writeText(codeText)
         copyButton.style.transition = 'background-color 0.3s ease'
         copyButton.style.backgroundColor = 'white'
         setTimeout(() => {
@@ -349,27 +353,18 @@ const toggleLessonComplete = () => {
   progressStore._forceUpdate++
 }
 
-// Function to escape HTML in the code examples
-const escapeHtml = (unsafe) => {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
+// Process explanation content to update embedded code blocks with proper language detection
+const processedExplanation = (explanation) => {
+  if (!explanation) return ''
 
-// Function to highlight code using Prism
-const highlightedCode = (code) => {
-  const escapedCode = escapeHtml(code)
-
-  // Return escaped code (Prism will highlight it after mounting)
-  return escapedCode
-}
-
-// Copy code to clipboard, from explanations and challenges
-const copyCode = (code) => {
-  navigator.clipboard.writeText(code)
+  // Replace embedded code blocks with proper language detection
+  return explanation
+    .replace(
+      /<code class="language-javascript">/g,
+      `<code class="language-${currentLanguage.value}">`,
+    )
+    .replace(/<code class="language-[\w-]+">/g, `<code class="language-${currentLanguage.value}">`)
+    .replace(/<code(?!\s+class=)>/g, `<code class="language-${currentLanguage.value}">`)
 }
 
 // Apply Prism highlighting after the component updates
