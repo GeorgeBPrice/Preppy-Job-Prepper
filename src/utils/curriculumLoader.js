@@ -1,10 +1,22 @@
 // src/utils/curriculumLoader.js
 import { useTopicStore } from '../store/topic'
+import { augmentCurriculumWithIds } from './curriculumIds'
 
 // Default curriculum to handle errors gracefully
 const defaultCurriculum = {
   curriculum: [],
   shortlistCurriculum: [],
+}
+
+function augmentLoadedCurriculum(curriculumModule, topic) {
+  if (!curriculumModule) return curriculumModule
+  if (Array.isArray(curriculumModule.curriculum)) {
+    augmentCurriculumWithIds(curriculumModule.curriculum, topic)
+  }
+  if (Array.isArray(curriculumModule.shortlistCurriculum)) {
+    augmentCurriculumWithIds(curriculumModule.shortlistCurriculum, `${topic}:shortlist`)
+  }
+  return curriculumModule
 }
 
 /**
@@ -16,7 +28,7 @@ export async function loadCurriculum(topic) {
   try {
     // Dynamically import the correct curriculum based on topic
     const curriculumModule = await import(`../data/topic/${topic}/curriculum.js`)
-    return curriculumModule
+    return augmentLoadedCurriculum(curriculumModule, topic)
   } catch (error) {
     // Try to load curriculum from sections as fallback
     try {
@@ -25,7 +37,7 @@ export async function loadCurriculum(topic) {
       const curriculum = section1.default ? section1.default : section1
 
       // If this is a section-based curriculum, construct a simple curriculum array
-      return {
+      const fallback = {
         curriculum: [
           {
             title: `${topic.charAt(0).toUpperCase() + topic.slice(1)} Section 1`,
@@ -34,6 +46,7 @@ export async function loadCurriculum(topic) {
           },
         ],
       }
+      return augmentLoadedCurriculum(fallback, topic)
     } catch {
       console.error(`Failed to load curriculum for topic: ${topic}`, error)
       return defaultCurriculum

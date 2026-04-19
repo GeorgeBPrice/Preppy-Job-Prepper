@@ -59,6 +59,12 @@
         :id="`section-${index}`"
       >
         <h4>{{ sectionContent.title }}</h4>
+        <LessonAIActions
+          :section-title="section?.title || ''"
+          :lesson-title="lesson?.title || ''"
+          :subsection-title="sectionContent.title || ''"
+          :explanation="sectionContent.explanation || ''"
+        />
         <div
           v-html="processedExplanation(sectionContent.explanation)"
           class="explanation"
@@ -133,6 +139,7 @@ import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
 import { getSection, getShortlistSection } from '../utils/curriculumLoader'
 import CodeExample from './CodeExample.vue'
+import LessonAIActions from './LessonAIActions.vue'
 
 // Custom syntax highlighting styling for better readability
 import 'prismjs/components/prism-javascript'

@@ -8,18 +8,7 @@
       </p>
     </div>
     <div class="editor-content">
-      <div class="code-textarea-wrapper">
-        <textarea
-          v-model="code"
-          class="code-textarea"
-          rows="10"
-          placeholder="Paste your code here..."
-          @input="handleCodeInput"
-          @keydown="handleKeydown"
-          ref="codeTextarea"
-        ></textarea>
-        <pre class="code-highlight-overlay" ref="highlightOverlay" aria-hidden="true"></pre>
-      </div>
+      <div class="cm-mount" ref="cmMount"></div>
     </div>
     <div class="editor-footer">
       <button @click="saveCode" class="btn btn-primary">Save</button>
@@ -42,11 +31,30 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useProgressStore } from '../store/progress'
 import { useAIStore } from '../store/ai'
-import Prism from 'prismjs'
+import { useTopicStore } from '../store/topic'
+import { useThemeStore } from '../theme/theme'
 import { submitCodeForGrading } from '../utils/aiService'
+import { getSection, getLesson } from '../utils/curriculumLoader'
+import { EditorState, Compartment } from '@codemirror/state'
+import { EditorView, keymap, lineNumbers, highlightActiveLine } from '@codemirror/view'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import {
+  bracketMatching,
+  indentOnInput,
+  foldGutter,
+  foldKeymap,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+} from '@codemirror/language'
+import { javascript } from '@codemirror/lang-javascript'
+import { yaml as legacyYaml } from '@codemirror/legacy-modes/mode/yaml'
+import { shell } from '@codemirror/legacy-modes/mode/shell'
+import { csharp as legacyCsharp } from '@codemirror/legacy-modes/mode/clike'
+import { StreamLanguage } from '@codemirror/language'
+import { oneDark } from '@codemirror/theme-one-dark'
 
 const props = defineProps({
   sectionId: {
@@ -67,23 +75,88 @@ const emit = defineEmits(['code-submitted', 'code-graded'])
 
 const progressStore = useProgressStore()
 const aiStore = useAIStore()
+const topicStore = useTopicStore()
+const themeStore = useThemeStore()
 const code = ref('')
 const isGrading = computed(() => aiStore.isLoading)
 const hasApiKey = computed(() => aiStore.hasApiKey)
-const codeTextarea = ref(null)
-const highlightOverlay = ref(null)
+const cmMount = ref(null)
+
+let editorView = null
+const languageCompartment = new Compartment()
+const themeCompartment = new Compartment()
+
+function resolveLanguageExtension(topic) {
+  switch (topic) {
+    case 'typescript':
+      return javascript({ typescript: true })
+    case 'react':
+      return javascript({ typescript: true, jsx: true })
+    case 'csharp':
+      return StreamLanguage.define(legacyCsharp)
+    case 'devops':
+      return StreamLanguage.define(legacyYaml)
+    case 'ai':
+      return StreamLanguage.define(shell)
+    default:
+      return javascript()
+  }
+}
+
+function resolveThemeExtension(isDark) {
+  return isDark ? oneDark : []
+}
+
+function baseExtensions() {
+  return [
+    lineNumbers(),
+    highlightActiveLine(),
+    history(),
+    foldGutter(),
+    bracketMatching(),
+    indentOnInput(),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
+    EditorView.lineWrapping,
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        const value = update.state.doc.toString()
+        if (value !== code.value) code.value = value
+      }
+    }),
+  ]
+}
+
+function createEditor() {
+  if (!cmMount.value) return
+  const state = EditorState.create({
+    doc: code.value,
+    extensions: [
+      ...baseExtensions(),
+      languageCompartment.of(resolveLanguageExtension(topicStore.currentTopic)),
+      themeCompartment.of(resolveThemeExtension(themeStore.isDarkMode)),
+    ],
+  })
+  editorView = new EditorView({ state, parent: cmMount.value })
+}
+
+function setEditorValue(next) {
+  if (!editorView) return
+  const current = editorView.state.doc.toString()
+  if (current === next) return
+  editorView.dispatch({
+    changes: { from: 0, to: current.length, insert: next ?? '' },
+  })
+}
 
 onMounted(() => {
   loadSavedCode()
-  highlightCode()
-  setupSyntaxHighlighting()
+  nextTick(createEditor)
 
-  // Load AI settings if not already loaded
   if (!aiStore.isLoaded) {
     aiStore.loadSettings()
   }
 
-  // Check if there's a saved response for this section
   if (props.isChallenge) {
     const savedResponse = aiStore.getSavedResponse(props.sectionId)
     if (savedResponse) {
@@ -92,81 +165,44 @@ onMounted(() => {
   }
 })
 
+onBeforeUnmount(() => {
+  if (editorView) {
+    editorView.destroy()
+    editorView = null
+  }
+})
+
 watch(
   () => [props.sectionId, props.lessonId, props.isChallenge],
   () => {
     loadSavedCode()
+    setEditorValue(code.value)
   },
 )
 
-watch(code, () => {
-  highlightCode()
-  updateSyntaxHighlighting()
+watch(code, (value) => {
+  setEditorValue(value)
 })
 
-// Setup syntax highlighting for the textarea
-const setupSyntaxHighlighting = () => {
-  nextTick(() => {
-    if (codeTextarea.value && highlightOverlay.value) {
-      // Sync scroll positions
-      codeTextarea.value.addEventListener('scroll', syncScroll)
-      // Initial highlighting
-      updateSyntaxHighlighting()
-    }
-  })
-}
-
-// Handle code input
-const handleCodeInput = () => {
-  updateSyntaxHighlighting()
-}
-
-// Handle keydown events
-const handleKeydown = (event) => {
-  // Handle tab key
-  if (event.key === 'Tab') {
-    event.preventDefault()
-    const start = event.target.selectionStart
-    const end = event.target.selectionEnd
-
-    // Insert 2 spaces at cursor position
-    const newCode = code.value.substring(0, start) + '  ' + code.value.substring(end)
-    code.value = newCode
-
-    // Set cursor position after the inserted spaces
-    nextTick(() => {
-      event.target.selectionStart = event.target.selectionEnd = start + 2
+watch(
+  () => topicStore.currentTopic,
+  (topic) => {
+    if (!editorView) return
+    editorView.dispatch({
+      effects: languageCompartment.reconfigure(resolveLanguageExtension(topic)),
     })
-  }
-}
+  },
+)
 
-// Sync scroll between textarea and overlay
-const syncScroll = () => {
-  if (codeTextarea.value && highlightOverlay.value) {
-    highlightOverlay.value.scrollTop = codeTextarea.value.scrollTop
-    highlightOverlay.value.scrollLeft = codeTextarea.value.scrollLeft
-  }
-}
-
-// Update syntax highlighting
-const updateSyntaxHighlighting = () => {
-  nextTick(() => {
-    if (highlightOverlay.value && code.value) {
-      // Highlight the code using Prism
-      const highlighted = Prism.highlight(code.value, Prism.languages.javascript, 'javascript')
-      highlightOverlay.value.innerHTML = highlighted
-    } else if (highlightOverlay.value) {
-      highlightOverlay.value.innerHTML = ''
-    }
-  })
-}
-
-// Apply Prism highlighting
-const highlightCode = () => {
-  setTimeout(() => {
-    Prism.highlightAll()
-  }, 0)
-}
+watch(
+  () => themeStore.isDarkMode,
+  (isDark) => {
+    if (!editorView) return
+    editorView.dispatch({
+      effects: themeCompartment.reconfigure(resolveThemeExtension(isDark)),
+    })
+  },
+)
 
 const loadSavedCode = () => {
   if (props.isChallenge) {
@@ -207,27 +243,35 @@ const submitAndGradeCode = async () => {
 
     try {
       // Get the current section or lesson details (Context for the LLM)
-      let sectionTitle, challengeDescription
+      let sectionTitle = ''
+      let challengeDescription = ''
 
-      if (props.isChallenge) {
-        const sectionIndex = props.sectionId - 1
-        const section = window.curriculum?.[sectionIndex]
-
-        if (section) {
-          sectionTitle = section.title
-          challengeDescription = section.challenge?.description || 'Complete the coding challenge'
+      try {
+        if (props.isChallenge) {
+          const section = await getSection(props.sectionId)
+          if (section) {
+            sectionTitle = section.title || ''
+            challengeDescription =
+              section.challenge?.description ||
+              section.challenge?.instructions ||
+              'Complete the coding challenge'
+          }
+        } else {
+          const section = await getSection(props.sectionId)
+          const lesson = await getLesson(props.sectionId, props.lessonId)
+          if (section) {
+            sectionTitle = section.title || ''
+          }
+          if (lesson) {
+            challengeDescription = lesson.description || 'Complete the lesson exercise'
+          }
         }
-      } else {
-        const sectionIndex = props.sectionId - 1
-        const lessonIndex = props.lessonId - 1
-        const section = window.curriculum?.[sectionIndex]
-
-        if (section) {
-          sectionTitle = section.title
-          const lesson = section.lessons?.[lessonIndex]
-          challengeDescription = lesson?.description || 'Complete the lesson exercise'
-        }
+      } catch (contextError) {
+        console.warn('Could not load lesson context for AI grading:', contextError)
       }
+
+      if (!sectionTitle) sectionTitle = 'Code Review'
+      if (!challengeDescription) challengeDescription = 'Review the submitted code.'
 
       // Submit the code for grading (prompt context for the LLM)
       const response = await submitCodeForGrading(
@@ -315,58 +359,35 @@ const resetCode = () => {
   position: relative;
 }
 
-.code-textarea-wrapper {
-  position: relative;
+.cm-mount {
   margin: 0 20px;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--bg-code);
 }
 
-.code-textarea {
-  width: 100%;
-  border: none;
-  padding: 12px 15px;
+.cm-mount :deep(.cm-editor) {
+  min-height: 220px;
+  max-height: 520px;
   font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
   font-size: 0.9rem;
-  line-height: 1.4;
-  resize: vertical;
-  background-color: transparent;
-  color: transparent;
-  caret-color: var(--text-color);
-  transition: all var(--transition-speed) ease;
-  min-height: 200px;
-  position: relative;
-  z-index: 2;
-}
-
-.code-highlight-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 12px 15px;
-  margin: 0;
-  font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  font-size: 0.9rem;
-  line-height: 1.4;
+  line-height: 1.45;
   background-color: var(--bg-code);
   color: var(--text-color);
-  border: none;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  pointer-events: none;
-  z-index: 1;
 }
 
-.code-textarea:focus {
+.cm-mount :deep(.cm-editor.cm-focused) {
   outline: none;
-  background-color: transparent;
-  color: transparent;
 }
 
-.code-textarea::placeholder {
+.cm-mount :deep(.cm-scroller) {
+  font-family: inherit;
+}
+
+.cm-mount :deep(.cm-gutters) {
+  background-color: var(--bg-sidebar);
   color: var(--text-muted);
-  opacity: 0.6;
+  border-right: 1px solid var(--border-color);
 }
 
 .preview-container {
@@ -472,109 +493,18 @@ const resetCode = () => {
   border-width: 0.125em;
 }
 
-/* Dark mode specific improvements */
-:root[data-theme='dark'] .code-textarea {
-  background-color: transparent;
-  color: transparent;
-  caret-color: #f3f4f6;
-}
-
-:root[data-theme='dark'] .code-textarea::placeholder {
-  color: #9ca3af;
-}
-
-:root[data-theme='dark'] .code-highlight-overlay {
-  background-color: #0f172a;
-  color: #f3f4f6;
-}
-
+:root[data-theme='dark'] .cm-mount,
 :root[data-theme='dark'] .limited-height-preview {
   background-color: #0f172a;
   color: #f3f4f6;
 }
 
-/* Remove unwanted borders on code lines in dark mode */
-:root[data-theme='dark'] .code-highlight-overlay .token {
-  border: none;
-}
-
-/* Light mode specific improvements */
-:root[data-theme='light'] .code-textarea {
-  background-color: transparent;
-  color: transparent;
-  caret-color: #333333;
-}
-
-:root[data-theme='light'] .code-textarea::placeholder {
-  color: #6c757d;
-}
-
-:root[data-theme='light'] .code-highlight-overlay {
-  background-color: #f8f9fa;
-  color: #333333;
-}
-
+:root[data-theme='light'] .cm-mount,
 :root[data-theme='light'] .limited-height-preview {
   background-color: #f8f9fa;
   color: #333333;
 }
 
-/* Syntax highlighting token colors */
-:deep(.token.comment) {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-:deep(.token.keyword) {
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-:deep(.token.string) {
-  color: var(--success-color);
-}
-
-:deep(.token.number) {
-  color: var(--info-color);
-}
-
-:deep(.token.function) {
-  color: var(--warning-color);
-}
-
-:deep(.token.operator) {
-  color: var(--text-color);
-}
-
-:deep(.token.punctuation) {
-  color: var(--text-muted);
-}
-
-:deep(.token.class-name) {
-  color: var(--info-color);
-}
-
-:deep(.token.variable) {
-  color: var(--text-color);
-}
-
-:deep(.token.property) {
-  color: var(--warning-color);
-}
-
-:deep(.token.boolean) {
-  color: var(--danger-color);
-}
-
-:deep(.token.null) {
-  color: var(--text-muted);
-}
-
-:deep(.token.undefined) {
-  color: var(--text-muted);
-}
-
-/* Responsive design */
 @media (max-width: 768px) {
   .editor-footer {
     flex-direction: column;
@@ -585,9 +515,8 @@ const resetCode = () => {
     margin-bottom: 5px;
   }
 
-  .code-textarea {
+  .cm-mount :deep(.cm-editor) {
     font-size: 0.85rem;
-    padding: 12px;
   }
 }
 </style>

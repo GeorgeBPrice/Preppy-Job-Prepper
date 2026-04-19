@@ -20,7 +20,7 @@
     </div>
 
     <!-- Curriculum Menu -->
-    <div class="sidebar-content" ref="sidebarContent">
+    <div v-if="!isLandingPage" class="sidebar-content" ref="sidebarContent">
       <!-- Prepper section -->
       <div :class="{ 'menu-label collapsed': isCollapsed, 'menu-label': !isCollapsed }">
         <label>{{ isCollapsed ? 'Recap' : 'Quick Recap' }}</label>
@@ -135,6 +135,23 @@
       </div>
     </div>
 
+    <!-- Landing placeholder when no topic is selected -->
+    <div v-if="isLandingPage && !isCollapsed" class="sidebar-landing-placeholder">
+      <i class="bi bi-signpost-2"></i>
+      <p>Pick a topic to load its lessons:</p>
+      <div class="sidebar-topic-picker">
+        <button
+          v-for="topic in topicStore.availableTopics"
+          :key="topic.value"
+          type="button"
+          class="sidebar-topic-btn"
+          @click="selectTopicFromLanding(topic.value)"
+        >
+          {{ topic.label }}
+        </button>
+      </div>
+    </div>
+
     <!-- Sidebar resizer draggable edge -->
     <div class="sidebar-resize-handle" @mousedown="startResize" @touchstart="startResize"></div>
 
@@ -143,10 +160,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useProgressStore } from '../store/progress'
 import { useTopicStore } from '../store/topic'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getCurrentCurriculum } from '../utils/curriculumLoader'
 
 const props = defineProps({
@@ -159,6 +176,15 @@ const props = defineProps({
 const emit = defineEmits(['toggle', 'close', 'expand'])
 
 const route = useRoute()
+const router = useRouter()
+const isLandingPage = computed(() => route.name === 'home')
+
+function selectTopicFromLanding(topicValue) {
+  if (topicStore.currentTopic !== topicValue) {
+    topicStore.setTopic(topicValue)
+  }
+  router.push({ name: 'topic-home' })
+}
 const progressStore = useProgressStore()
 const topicStore = useTopicStore()
 const openSections = ref([])
@@ -770,6 +796,56 @@ a.router-link-active.router-link-exact-active.interview-nav-link {
 
 .interview-nav-link i {
   font-size: 14px;
+}
+
+.sidebar-landing-placeholder {
+  padding: 30px 20px;
+  margin: 20px 10px;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.9rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+}
+
+.sidebar-landing-placeholder i {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.sidebar-landing-placeholder p {
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.sidebar-topic-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sidebar-topic-btn {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-sidebar);
+  color: var(--text-color);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.sidebar-topic-btn:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
 }
 
 .no-curriculum-message,

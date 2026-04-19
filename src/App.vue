@@ -24,6 +24,7 @@
         @close="closeMobileMenu"
       />
       <main class="content-area" :class="{ 'dark-mode': isDarkMode }">
+        <AppBreadcrumb />
         <router-view></router-view>
         <BackToTop />
       </main>
@@ -31,6 +32,7 @@
     <!-- AI Chat component -->
     <AIChat />
   </div>
+  <KeyboardShortcutsHelp v-model="cheatsheetOpen" />
   <!-- Modal HTML for Congratulations Popup -->
   <CourseCompletedModal />
 </template>
@@ -38,6 +40,7 @@
 <script setup>
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
+import AppBreadcrumb from './components/AppBreadcrumb.vue'
 import BackToTop from './components/BackToTop.vue'
 import AIChat from './components/AIChat.vue'
 import { onMounted, onBeforeMount, ref, watch, computed } from 'vue'
@@ -45,7 +48,11 @@ import { useProgressStore } from './store/progress'
 import { useTopicStore } from './store/topic'
 import { useThemeStore } from './theme/theme'
 import CourseCompletedModal from '@/components/CourseCompletedModal.vue'
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.vue'
 import useCongratulationsModal from './scripts/useCongratulationsModal'
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
+
+const { cheatsheetOpen } = useKeyboardShortcuts()
 
 const progressStore = useProgressStore()
 const topicStore = useTopicStore()

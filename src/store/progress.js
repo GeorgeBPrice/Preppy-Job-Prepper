@@ -6,18 +6,81 @@ import {
   // loadTopicProgress,
 } from '../utils/storage'
 import { useTopicStore } from './topic'
-import { getCurrentCurriculum } from '../utils/curriculumLoader'
+import { getCurrentCurriculum, loadCurriculum } from '../utils/curriculumLoader'
+import { getCachedIdMap, resolveIdsFromIndexes } from '../utils/curriculumIds'
+
+// Progress is keyed by stable section/lesson IDs derived from slugified
+// titles (see src/utils/curriculumIds.js). Earlier versions keyed by array
+// index, which silently corrupts when the curriculum is reordered. We keep
+// the public API in terms of indexes (sectionIndex, lessonIndex) so every
+// existing call site keeps working — translation happens inside the store.
+//
+// When a topic's curriculum hasn't been loaded yet (idMap not cached), we
+// transparently fall back to numeric-string keys; migration runs as soon as
+// the curriculum becomes available.
+
+const LEGACY_NUMERIC = /^\d+$/
+
+function isLegacyKey(key) {
+  return LEGACY_NUMERIC.test(String(key))
+}
+
+function remapCompletionMap(map, idMap) {
+  if (!map || typeof map !== 'object') return {}
+  const next = {}
+  for (const [secKey, lessonMap] of Object.entries(map)) {
+    if (!lessonMap || typeof lessonMap !== 'object') continue
+    let sectionEntry = null
+    let sectionKey = secKey
+    if (isLegacyKey(secKey)) {
+      const idx = parseInt(secKey, 10)
+      sectionEntry = idMap.sections[idx]
+      if (!sectionEntry) continue
+      sectionKey = sectionEntry.id
+    }
+    const nextLessons = next[sectionKey] || {}
+    for (const [lessonKey, value] of Object.entries(lessonMap)) {
+      if (!value) continue
+      let lessonKeyOut = lessonKey
+      if (isLegacyKey(lessonKey) && sectionEntry) {
+        const lessonIdx = parseInt(lessonKey, 10)
+        const lessonEntry = sectionEntry.lessons[lessonIdx]
+        if (!lessonEntry) continue
+        lessonKeyOut = lessonEntry.id
+      }
+      nextLessons[lessonKeyOut] = value
+    }
+    next[sectionKey] = nextLessons
+  }
+  return next
+}
+
+function remapSectionMap(map, idMap) {
+  if (!map || typeof map !== 'object') return {}
+  const next = {}
+  for (const [secKey, value] of Object.entries(map)) {
+    if (!value) continue
+    let sectionKey = secKey
+    if (isLegacyKey(secKey)) {
+      const idx = parseInt(secKey, 10)
+      const sectionEntry = idMap.sections[idx]
+      if (!sectionEntry) continue
+      sectionKey = sectionEntry.id
+    }
+    next[sectionKey] = value
+  }
+  return next
+}
 
 export const useProgressStore = defineStore('progress', {
   state: () => ({
-    // Mapping of topic -> section -> lesson -> completion status
     topicProgress: {},
     isLoaded: false,
     _forceUpdate: 0,
+    _migratedTopics: {},
   }),
 
   getters: {
-    // Get current topic's progress data
     currentTopicProgress(state) {
       const topicStore = useTopicStore()
       const topicKey = topicStore.currentTopic
@@ -35,7 +98,6 @@ export const useProgressStore = defineStore('progress', {
       return state.topicProgress[topicKey]
     },
 
-    // Alias getters for backward compatibility and convenience
     completedLessons() {
       return this.currentTopicProgress.completedLessons || {}
     },
@@ -56,11 +118,8 @@ export const useProgressStore = defineStore('progress', {
       return this.currentTopicProgress.currentLesson || { section: 0, lesson: 0 }
     },
 
-    // Calculate overall progress for current topic
     async overallProgress() {
       try {
-        // Including _forceUpdate as a dependency to trigger reactivity
-        // This line doesn't do anything functionally but ensures the getter re-runs when _forceUpdate changes
         // eslint-disable-next-line no-unused-vars
         const _ = this._forceUpdate
 
@@ -76,16 +135,15 @@ export const useProgressStore = defineStore('progress', {
           if (section.lessons && section.lessons.length > 0) {
             section.lessons.forEach((_, lessonIndex) => {
               totalItems++
-              if (this.completedLessons[sectionIndex]?.[lessonIndex]) {
+              if (this.isLessonCompleted(sectionIndex, lessonIndex)) {
                 completedItems++
               }
             })
           }
 
-          // Add challenge
           if (section.challenge) {
             totalItems++
-            if (this.completedChallenges[sectionIndex]) {
+            if (this.isChallengeCompleted(sectionIndex)) {
               completedItems++
             }
           }
@@ -108,7 +166,6 @@ export const useProgressStore = defineStore('progress', {
       )
     },
 
-    // Find the next uncompleted item (not checked by user)
     async nextUncompletedItem() {
       try {
         const curriculum = await getCurrentCurriculum()
@@ -140,15 +197,107 @@ export const useProgressStore = defineStore('progress', {
   },
 
   actions: {
-    loadProgress() {
+    _sectionKey(sectionIndex) {
+      const topicStore = useTopicStore()
+      const { sectionId } = resolveIdsFromIndexes(topicStore.currentTopic, sectionIndex)
+      return sectionId || String(sectionIndex)
+    },
+
+    _lessonKeys(sectionIndex, lessonIndex) {
+      const topicStore = useTopicStore()
+      const { sectionId, lessonId } = resolveIdsFromIndexes(
+        topicStore.currentTopic,
+        sectionIndex,
+        lessonIndex,
+      )
+      return {
+        sectionKey: sectionId || String(sectionIndex),
+        lessonKey: lessonId || String(lessonIndex),
+      }
+    },
+
+    /**
+     * Read helper: accept both ID-keyed and legacy index-keyed storage for a
+     * given (sectionIndex, lessonIndex). Returns the first hit. Handles users
+     * whose localStorage still has legacy keys because migration hasn't run
+     * yet (e.g. curriculum still loading).
+     */
+    _readLesson(map, sectionIndex, lessonIndex) {
+      if (!map) return undefined
+      const { sectionKey, lessonKey } = this._lessonKeys(sectionIndex, lessonIndex)
+      const byId = map[sectionKey]?.[lessonKey]
+      if (byId !== undefined) return byId
+      // Fall back to legacy index keys if the store hasn't been migrated.
+      return map[String(sectionIndex)]?.[String(lessonIndex)]
+    },
+
+    _readSection(map, sectionIndex) {
+      if (!map) return undefined
+      const sectionKey = this._sectionKey(sectionIndex)
+      const byId = map[sectionKey]
+      if (byId !== undefined) return byId
+      return map[String(sectionIndex)]
+    },
+
+    async ensureIdMap(topic) {
+      if (getCachedIdMap(topic)) return
+      try {
+        await loadCurriculum(topic)
+      } catch (err) {
+        console.warn(`ensureIdMap: failed to load curriculum for ${topic}`, err)
+      }
+    },
+
+    /**
+     * Convert any numeric-string (legacy index) keys in the given topic's
+     * progress to stable content IDs. One-shot per topic — we track which
+     * topics have been migrated in _migratedTopics to avoid repeated work.
+     */
+    migrateLegacyKeysForTopic(topic) {
+      if (this._migratedTopics[topic]) return
+      const idMap = getCachedIdMap(topic)
+      if (!idMap) return
+
+      const progress = this.topicProgress[topic]
+      if (!progress) {
+        this._migratedTopics[topic] = true
+        return
+      }
+
+      progress.completedLessons = remapCompletionMap(progress.completedLessons, idMap)
+      progress.lessonCode = remapCompletionMap(progress.lessonCode, idMap)
+      progress.completedChallenges = remapSectionMap(progress.completedChallenges, idMap)
+      progress.challengeCode = remapSectionMap(progress.challengeCode, idMap)
+
+      // currentLesson: preserve index fields (legacy components read them) but
+      // also record IDs so we can recover after a reorder.
+      const current = progress.currentLesson
+      if (current && typeof current.section === 'number') {
+        const section = idMap.sections[current.section]
+        const lesson = section?.lessons[current.lesson]
+        if (section) {
+          progress.currentLesson = {
+            section: current.section,
+            lesson: current.lesson,
+            sectionId: section.id,
+            lessonId: lesson ? lesson.id : null,
+          }
+        }
+      }
+
+      this._migratedTopics[topic] = true
+      this.saveProgress()
+    },
+
+    async loadProgress() {
       const data = loadFromStorage('js_job_review_progress')
       if (data) {
-        // Handle legacy data format (pre-topic separation)
         if (data.completedLessons) {
+          // Legacy pre-topic-separation format: everything was under the
+          // default topic's namespace.
           const topicStore = useTopicStore()
           const defaultTopic = topicStore.currentTopic
 
-          // Migrate old data to new format
           this.topicProgress = {
             [defaultTopic]: {
               completedLessons: data.completedLessons || {},
@@ -159,12 +308,10 @@ export const useProgressStore = defineStore('progress', {
             },
           }
         } else if (data.topicProgress) {
-          // Use new data format
           this.topicProgress = data.topicProgress
         }
       }
 
-      // Initialize current topic if not present
       const topicStore = useTopicStore()
       if (!this.topicProgress[topicStore.currentTopic]) {
         this.topicProgress[topicStore.currentTopic] = {
@@ -177,6 +324,15 @@ export const useProgressStore = defineStore('progress', {
       }
 
       this.isLoaded = true
+
+      // Fire-and-forget: load the current topic's curriculum so the idMap is
+      // cached, then migrate legacy keys. We don't await this because load
+      // callers (App.vue onMounted) may themselves be awaiting other work;
+      // the migration is self-contained.
+      this.ensureIdMap(topicStore.currentTopic).then(() => {
+        this.migrateLegacyKeysForTopic(topicStore.currentTopic)
+      })
+
       this.saveProgress()
     },
 
@@ -185,10 +341,8 @@ export const useProgressStore = defineStore('progress', {
         topicProgress: this.topicProgress,
       }
 
-      // Save all topic progress
       saveToStorage(data, 'js_job_review_progress')
 
-      // Also save current topic separately for backup
       const topicStore = useTopicStore()
       saveTopicProgress(topicStore.currentTopic, this.currentTopicProgress)
     },
@@ -199,52 +353,66 @@ export const useProgressStore = defineStore('progress', {
         progress.completedLessons = {}
       }
 
-      if (!progress.completedLessons[sectionIndex]) {
-        progress.completedLessons[sectionIndex] = {}
+      const { sectionKey, lessonKey } = this._lessonKeys(sectionIndex, lessonIndex)
+
+      if (!progress.completedLessons[sectionKey]) {
+        progress.completedLessons[sectionKey] = {}
       }
 
-      progress.completedLessons[sectionIndex][lessonIndex] = true
+      progress.completedLessons[sectionKey][lessonKey] = true
       this.updateCurrentLesson(sectionIndex, lessonIndex)
-      this._forceUpdate++ // Force reactivity update
+      this._forceUpdate++
       this.saveProgress()
 
-      // For immediate progress bar update
       if (updateProgress) {
         this.$patch({ _forceUpdate: this._forceUpdate + 1 })
       }
     },
 
-    // In uncompleteLesson method:
     uncompleteLesson(sectionIndex, lessonIndex, updateProgress = false) {
       const progress = this.currentTopicProgress
-      if (progress.completedLessons && progress.completedLessons[sectionIndex]) {
-        delete progress.completedLessons[sectionIndex][lessonIndex]
+      if (!progress.completedLessons) return
+      const { sectionKey, lessonKey } = this._lessonKeys(sectionIndex, lessonIndex)
 
-        // If there are no more lessons in this section, remove the section entry
-        if (Object.keys(progress.completedLessons[sectionIndex]).length === 0) {
-          delete progress.completedLessons[sectionIndex]
+      // Delete both the canonical ID key and any lingering legacy index key so
+      // toggling off works even mid-migration.
+      const legacySectionKey = String(sectionIndex)
+      const legacyLessonKey = String(lessonIndex)
+
+      if (progress.completedLessons[sectionKey]) {
+        delete progress.completedLessons[sectionKey][lessonKey]
+        if (Object.keys(progress.completedLessons[sectionKey]).length === 0) {
+          delete progress.completedLessons[sectionKey]
         }
       }
-      this._forceUpdate++ // Force reactivity update
+      if (
+        sectionKey !== legacySectionKey &&
+        progress.completedLessons[legacySectionKey]
+      ) {
+        delete progress.completedLessons[legacySectionKey][legacyLessonKey]
+        if (Object.keys(progress.completedLessons[legacySectionKey]).length === 0) {
+          delete progress.completedLessons[legacySectionKey]
+        }
+      }
+
+      this._forceUpdate++
       this.saveProgress()
 
-      // For immediate progress bar update
       if (updateProgress) {
         this.$patch({ _forceUpdate: this._forceUpdate + 1 })
       }
     },
 
-    // In completeSectionChallenge method:
     completeSectionChallenge(sectionIndex, updateProgress = false) {
       const progress = this.currentTopicProgress
       if (!progress.completedChallenges) {
         progress.completedChallenges = {}
       }
 
-      progress.completedChallenges[sectionIndex] = true
-      this._forceUpdate++ // Force reactivity update
+      const sectionKey = this._sectionKey(sectionIndex)
+      progress.completedChallenges[sectionKey] = true
+      this._forceUpdate++
 
-      // Async function to get curriculum length
       const updateNextSection = async () => {
         try {
           const curriculum = await getCurrentCurriculum()
@@ -259,22 +427,23 @@ export const useProgressStore = defineStore('progress', {
       updateNextSection()
       this.saveProgress()
 
-      // For immediate progress bar update
       if (updateProgress) {
         this.$patch({ _forceUpdate: this._forceUpdate + 1 })
       }
     },
 
-    // In uncompleteSectionChallenge method:
     uncompleteSectionChallenge(sectionIndex, updateProgress = false) {
       const progress = this.currentTopicProgress
-      if (progress.completedChallenges) {
-        delete progress.completedChallenges[sectionIndex]
+      if (!progress.completedChallenges) return
+      const sectionKey = this._sectionKey(sectionIndex)
+      const legacyKey = String(sectionIndex)
+      delete progress.completedChallenges[sectionKey]
+      if (sectionKey !== legacyKey) {
+        delete progress.completedChallenges[legacyKey]
       }
-      this._forceUpdate++ // Force reactivity update
+      this._forceUpdate++
       this.saveProgress()
 
-      // For immediate progress bar update
       if (updateProgress) {
         this.$patch({ _forceUpdate: this._forceUpdate + 1 })
       }
@@ -286,17 +455,19 @@ export const useProgressStore = defineStore('progress', {
         progress.lessonCode = {}
       }
 
-      if (!progress.lessonCode[sectionIndex]) {
-        progress.lessonCode[sectionIndex] = {}
+      const { sectionKey, lessonKey } = this._lessonKeys(sectionIndex, lessonIndex)
+
+      if (!progress.lessonCode[sectionKey]) {
+        progress.lessonCode[sectionKey] = {}
       }
 
-      progress.lessonCode[sectionIndex][lessonIndex] = code
+      progress.lessonCode[sectionKey][lessonKey] = code
       this.saveProgress()
     },
 
     getLessonCode(sectionIndex, lessonIndex) {
       const progress = this.currentTopicProgress
-      return progress.lessonCode?.[sectionIndex]?.[lessonIndex] || ''
+      return this._readLesson(progress.lessonCode, sectionIndex, lessonIndex) || ''
     },
 
     saveSectionChallengeCode(sectionIndex, code) {
@@ -305,23 +476,24 @@ export const useProgressStore = defineStore('progress', {
         progress.challengeCode = {}
       }
 
-      progress.challengeCode[sectionIndex] = code
+      const sectionKey = this._sectionKey(sectionIndex)
+      progress.challengeCode[sectionKey] = code
       this.saveProgress()
     },
 
     getSectionChallengeCode(sectionIndex) {
       const progress = this.currentTopicProgress
-      return progress.challengeCode?.[sectionIndex] || ''
+      return this._readSection(progress.challengeCode, sectionIndex) || ''
     },
 
     isLessonCompleted(sectionIndex, lessonIndex) {
       const progress = this.currentTopicProgress
-      return !!progress.completedLessons?.[sectionIndex]?.[lessonIndex]
+      return !!this._readLesson(progress.completedLessons, sectionIndex, lessonIndex)
     },
 
     isChallengeCompleted(sectionIndex) {
       const progress = this.currentTopicProgress
-      return !!progress.completedChallenges?.[sectionIndex]
+      return !!this._readSection(progress.completedChallenges, sectionIndex)
     },
 
     async isSectionCompleted(sectionIndex) {
@@ -334,14 +506,16 @@ export const useProgressStore = defineStore('progress', {
 
         if (!section.lessons || section.lessons.length === 0) return false
 
-        // Check if all lessons are completed
+        // Opportunistically migrate once curriculum has been loaded.
+        const topicStore = useTopicStore()
+        this.migrateLegacyKeysForTopic(topicStore.currentTopic)
+
         for (let i = 0; i < section.lessons.length; i++) {
           if (!this.isLessonCompleted(sectionIndex, i)) {
             return false
           }
         }
 
-        // Check if challenge is completed (if there is one)
         if (section.challenge && !this.isChallengeCompleted(sectionIndex)) {
           return false
         }
@@ -355,9 +529,12 @@ export const useProgressStore = defineStore('progress', {
 
     updateCurrentLesson(sectionIndex, lessonIndex) {
       const progress = this.currentTopicProgress
+      const { sectionKey, lessonKey } = this._lessonKeys(sectionIndex, lessonIndex)
       progress.currentLesson = {
         section: sectionIndex,
         lesson: lessonIndex,
+        sectionId: sectionKey,
+        lessonId: lessonKey,
       }
     },
 
@@ -373,13 +550,20 @@ export const useProgressStore = defineStore('progress', {
         currentLesson: { section: 0, lesson: 0 },
       }
 
+      delete this._migratedTopics[currentTopic]
+      // Bump the invalidation counter so the async `overallProgress` getter
+      // re-runs — without this the progress bar keeps its pre-reset value.
+      this._forceUpdate++
       this.saveProgress()
+      this.$patch({ _forceUpdate: this._forceUpdate + 1 })
     },
 
-    // Reset progress for all topics
     resetAllProgress() {
       this.topicProgress = {}
+      this._migratedTopics = {}
+      this._forceUpdate++
       this.saveProgress()
+      this.$patch({ _forceUpdate: this._forceUpdate + 1 })
     },
   },
 })
