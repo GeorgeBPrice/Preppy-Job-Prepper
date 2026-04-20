@@ -1,6 +1,7 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import TopicHomeView from '../views/TopicHomeView.vue'
 import LessonView from '../views/LessonView.vue'
 import ShortlistView from '../views/ShortlistView.vue'
 import ChallengeView from '../views/ChallengeView.vue'
@@ -13,6 +14,11 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
+    },
+    {
+      path: '/topic',
+      name: 'topic-home',
+      component: TopicHomeView,
     },
     {
       path: '/section/:sectionId/lesson/:lessonId',

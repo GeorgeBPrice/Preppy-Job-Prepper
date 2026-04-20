@@ -1,30 +1,44 @@
 import Cookies from 'js-cookie'
 
+// Cookies have a ~4 KB per-cookie hard cap. Writing anything larger silently
+// fails, so the previous "always back up to a cookie" behavior was a no-op
+// for any realistic progress blob. We now only write a cookie when the
+// payload comfortably fits.
+const COOKIE_SIZE_LIMIT_BYTES = 3072
+
 export const saveToStorage = (data, key) => {
   try {
     const serialized = JSON.stringify(data)
 
-    // Handle data size - potentially large objects for multiple topics
     try {
       localStorage.setItem(key, serialized)
     } catch (e) {
-      // If localStorage fails (e.g., quota exceeded), try to at least save current topic data
-      if (data.topicProgress && data.currentTopic) {
+      // If localStorage fails (typically quota exceeded), try to at least save
+      // current topic data so the user doesn't lose all of it.
+      if (data && data.topicProgress && data.currentTopic) {
         const reducedData = {
           topicProgress: {
             [data.currentTopic]: data.topicProgress[data.currentTopic],
           },
         }
-        localStorage.setItem(key, JSON.stringify(reducedData))
+        try {
+          localStorage.setItem(key, JSON.stringify(reducedData))
+        } catch (innerErr) {
+          console.warn('Storage quota exceeded; could not persist progress', innerErr)
+        }
+      } else {
+        console.warn('Storage quota exceeded; could not persist data for key', key, e)
       }
-      console.warn('Storage quota exceeded, saved limited data', e)
     }
 
-    // Always try cookies as backup, but limit size
-    try {
-      Cookies.set(key, serialized, { expires: 30 })
-    } catch (e) {
-      console.warn('Failed to save to cookies', e)
+    // Cookie backup: only for small payloads (topic prefs, theme, etc.). Skip
+    // silently for anything that would bust the 4 KB cookie cap.
+    if (serialized.length <= COOKIE_SIZE_LIMIT_BYTES) {
+      try {
+        Cookies.set(key, serialized, { expires: 30, sameSite: 'Lax' })
+      } catch (e) {
+        console.warn('Failed to save cookie backup for key', key, e)
+      }
     }
 
     return true
@@ -36,15 +50,12 @@ export const saveToStorage = (data, key) => {
 
 export const loadFromStorage = (key) => {
   try {
-    // Try localStorage first
     let data = localStorage.getItem(key)
 
-    // If not in localStorage, try cookies
     if (!data) {
       data = Cookies.get(key)
     }
 
-    // Parse and return the data
     return data ? JSON.parse(data) : null
   } catch (error) {
     console.error('Error loading from storage:', error)

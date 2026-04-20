@@ -10,7 +10,6 @@
 
           <!-- Logo -->
           <div class="logo">
-            <router-link to="/">
               <svg width="50" height="30" viewBox="0 0 70 40" class="logo-svg">
                 <defs>
                   <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -30,7 +29,6 @@
                   PreppY
                 </text>
               </svg>
-            </router-link>
           </div>
 
           <!-- Topic Selector Dropdown -->
@@ -42,6 +40,7 @@
               @change="changeTopic"
               class="topic-select"
             >
+              <option v-if="isLandingPage" disabled value="">Pick a topic…</option>
               <option
                 v-for="topic in topicStore.availableTopics"
                 :key="topic.value"
@@ -52,10 +51,26 @@
             </select>
           </div>
 
-          <h1 class="gradient-text d-none d-md-block">
-            {{ topicStore.currentTopicName }} Job Prepper
-          </h1>
-          <h1 class="gradient-text d-none">{{ topicStore.topicShortName }} Prepper</h1>
+          <button
+            type="button"
+            class="preppy-ai-btn d-none d-md-inline-flex"
+            :class="{ active: aiChatStore.isOpen }"
+            :aria-pressed="aiChatStore.isOpen"
+            aria-label="Toggle Preppy AI chat"
+            title="Toggle Preppy AI (Ctrl/⌘+;)"
+            @click="aiChatStore.toggleChat()"
+          >
+            <i class="bi bi-chat-dots"></i>
+            <span class="preppy-ai-btn__label d-none d-lg-inline">Preppy AI</span>
+          </button>
+
+          <h1 v-if="isLandingPage" class="gradient-text d-none d-md-block">Preppy</h1>
+          <template v-else>
+            <h1 class="gradient-text d-none d-md-block">
+              {{ topicStore.currentTopicName }} Job Prepper
+            </h1>
+            <h1 class="gradient-text d-none">{{ topicStore.topicShortName }} Prepper</h1>
+          </template>
         </div>
         <!-- Middle section: Search bar (only visible on desktop) -->
         <div class="header-center d-none d-md-block">
@@ -71,6 +86,7 @@
               class="topic-select-mobile"
               aria-label="Select topic"
             >
+              <option v-if="isLandingPage" disabled value="">Pick a topic…</option>
               <option
                 v-for="topic in topicStore.availableTopics"
                 :key="topic.value"
@@ -81,16 +97,38 @@
             </select>
           </div>
 
-          <div class="progress-container d-flex">
+          <div v-if="!isLandingPage" class="progress-container d-flex">
             <ProgressBar />
           </div>
 
           <button
-            v-if="hasProgress"
+            v-if="!isLandingPage && hasProgress"
             @click="goToCurrentProgress"
             class="btn btn-primary continue-btn"
           >
-            Continue
+            Resume
+          </button>
+
+          <!-- Mobile-only search trigger -->
+          <button
+            type="button"
+            class="icon-only-btn d-md-none"
+            aria-label="Open search"
+            @click="searchExpanded = true"
+          >
+            <i class="bi bi-search"></i>
+          </button>
+
+          <!-- Mobile-only Preppy AI toggle (icon only) -->
+          <button
+            type="button"
+            class="icon-only-btn preppy-ai-btn-mobile d-md-none"
+            :class="{ active: aiChatStore.isOpen }"
+            :aria-pressed="aiChatStore.isOpen"
+            aria-label="Toggle Preppy AI chat"
+            @click="aiChatStore.toggleChat()"
+          >
+            <i class="bi bi-chat-dots"></i>
           </button>
 
           <ThemeToggle />
@@ -100,6 +138,17 @@
 
     <!-- Mobile full-screen search overlay -->
     <div v-if="searchExpanded" class="mobile-search-overlay d-md-none">
+      <div class="mobile-search-overlay__header">
+        <span>Search</span>
+        <button
+          type="button"
+          class="icon-only-btn"
+          aria-label="Close search"
+          @click="searchExpanded = false"
+        >
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
       <SearchBar @search-closed="searchExpanded = false" @search-opened="searchExpanded = true" />
     </div>
   </header>
@@ -110,14 +159,19 @@ import ProgressBar from './ProgressBar.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import SearchBar from './SearchBar.vue'
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useProgressStore } from '../store/progress'
 import { useTopicStore } from '../store/topic'
+import { useAIChatStore } from '../store/aiChat'
 
 const emit = defineEmits(['toggle-mobile-menu'])
+const route = useRoute()
 const router = useRouter()
 const progressStore = useProgressStore()
 const topicStore = useTopicStore()
+const aiChatStore = useAIChatStore()
+
+const isLandingPage = computed(() => route.name === 'home')
 
 const mobileMenuOpen = ref(false)
 const searchExpanded = ref(false)
@@ -140,11 +194,20 @@ watch(
   },
 )
 
-// Watch for topic changes from the store
+// Watch for topic changes from the store. On the landing page we keep the
+// dropdown value empty so the "Pick a topic…" placeholder stays visible.
 watch(
   () => topicStore.currentTopic,
   (newTopic) => {
-    selectedTopic.value = newTopic
+    if (!isLandingPage.value) selectedTopic.value = newTopic
+  },
+)
+
+// Reset the dropdown to the placeholder whenever we return to landing.
+watch(
+  () => route.name,
+  (name) => {
+    selectedTopic.value = name === 'home' ? '' : topicStore.currentTopic
   },
 )
 
@@ -166,7 +229,7 @@ onMounted(() => {
   if (!topicStore.isLoaded) {
     topicStore.loadTopicPreference()
   }
-  selectedTopic.value = topicStore.currentTopic
+  selectedTopic.value = isLandingPage.value ? '' : topicStore.currentTopic
 
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize)
@@ -188,18 +251,35 @@ const handleResize = () => {
   }
 }
 
-// Handle topic change - redirect to home page
+// Handle topic change - redirect to topic-specific home page
 const changeTopic = () => {
-  // Only take action if there's actually a change
-  if (selectedTopic.value !== topicStore.currentTopic) {
+  const changed = selectedTopic.value !== topicStore.currentTopic
+  if (changed) {
     topicStore.setTopic(selectedTopic.value)
-
-    router.push('/')
+  }
+  // When invoked from the landing page we always want to navigate into the
+  // topic, even if the dropdown already shows the stored topic.
+  if (changed || isLandingPage.value) {
+    router.push({ name: 'topic-home' })
   }
 }
 
 const goToCurrentProgress = async () => {
   try {
+    // Prefer the most recently visited lesson when it's been set. Falls back
+    // to the next uncompleted item if the user hasn't opened a lesson yet.
+    const current = progressStore.currentLesson
+    if (current && (current.section > 0 || current.lesson > 0)) {
+      router.push({
+        name: 'lesson',
+        params: {
+          sectionId: current.section + 1,
+          lessonId: current.lesson + 1,
+        },
+      })
+      return
+    }
+
     const nextItem = await progressStore.nextUncompletedItem
     if (nextItem) {
       if (nextItem.type === 'lesson') {
@@ -336,6 +416,37 @@ h1 {
   font-size: 0.9rem;
 }
 
+.preppy-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  cursor: pointer;
+  margin-right: 0.75rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.preppy-ai-btn:hover,
+.preppy-ai-btn:active,
+.preppy-ai-btn:focus-visible,
+.preppy-ai-btn.active {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
+}
+
+.preppy-ai-btn .bi {
+  font-size: 1rem;
+}
+
 .mobile-search-overlay {
   position: fixed;
   top: 0;
@@ -347,6 +458,49 @@ h1 {
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-search-overlay__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  color: var(--text-color);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.icon-only-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1.05rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.icon-only-btn:hover,
+.icon-only-btn:focus-visible {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
+}
+
+.preppy-ai-btn-mobile.active {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
 }
 
 /* Topic selector styles */
@@ -390,7 +544,7 @@ h1 {
   background-color: var(--bg-content);
   color: var(--text-color);
   font-size: 0.8rem;
-  max-width: 95px;
+  max-width: 125px;
   outline: none;
 }
 
@@ -401,8 +555,23 @@ h1 {
   }
 
   .topic-select-mobile {
-    max-width: 80px;
-    font-size: 0.75rem;
+    max-width: 120px;
+    font-size: 0.8rem;
+  }
+
+  .progress-container,
+  .continue-btn {
+    display: none !important;
+  }
+
+  .header-right {
+    gap: 0.35rem;
+  }
+
+  .icon-only-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
   }
 }
 

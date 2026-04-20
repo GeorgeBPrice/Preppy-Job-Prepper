@@ -1,21 +1,5 @@
 <template>
   <div class="curriculum-content" v-if="section">
-    <!-- Top "Mark as completed" checkbox -->
-    <div class="top-completion-status" v-if="lesson && !isChallenge && !isShortlistRoute">
-      <div class="form-check">
-        <input
-          class="form-check-input"
-          type="checkbox"
-          :id="`lesson-${sectionId}-${lessonId}-completed-top`"
-          v-model="isLessonCompleted"
-          @change="toggleLessonComplete"
-        />
-        <label class="form-check-label" :for="`lesson-${sectionId}-${lessonId}-completed-top`">
-          Mark as completed
-        </label>
-      </div>
-    </div>
-
     <div class="section-title-wrapper">
       <div class="section-icon">
         <i class="bi bi-book-half"></i>
@@ -59,6 +43,12 @@
         :id="`section-${index}`"
       >
         <h4>{{ sectionContent.title }}</h4>
+        <LessonAIActions
+          :section-title="section?.title || ''"
+          :lesson-title="lesson?.title || ''"
+          :subsection-title="sectionContent.title || ''"
+          :explanation="sectionContent.explanation || ''"
+        />
         <div
           v-html="processedExplanation(sectionContent.explanation)"
           class="explanation"
@@ -133,6 +123,7 @@ import { applyCustomPrismStyling } from '../theme/customContentPrismStyling.js'
 import Prism from 'prismjs'
 import { getSection, getShortlistSection } from '../utils/curriculumLoader'
 import CodeExample from './CodeExample.vue'
+import LessonAIActions from './LessonAIActions.vue'
 
 // Custom syntax highlighting styling for better readability
 import 'prismjs/components/prism-javascript'
@@ -443,13 +434,6 @@ const parseExerciseInstructions = (instructions) => {
   max-width: 900px;
   margin: 0 auto;
   color: var(--text-color);
-}
-
-/* Top "Mark as completed" checkbox */
-.top-completion-status {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
 }
 
 /* Bottom "Mark as completed" checkbox */
@@ -1166,6 +1150,56 @@ const parseExerciseInstructions = (instructions) => {
   .section-links {
     margin-top: 6px;
     gap: 6px;
+  }
+}
+
+/* Extra-compact mobile layout — hide the lesson icon so the
+   "Jump to:" badges have room to wrap without clipping. */
+@media (max-width: 576px) {
+  .lesson-title-wrapper,
+  .challenge-title-wrapper {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .lesson-icon,
+  .challenge-icon {
+    display: none;
+  }
+
+  .lesson-title h3,
+  .challenge-title h3 {
+    font-size: 1.15rem;
+  }
+
+  .lesson-title p,
+  .challenge-title p {
+    font-size: 0.9rem;
+  }
+
+  .section-navigation {
+    margin-top: 8px;
+  }
+
+  .section-nav-label {
+    font-size: 0.85rem;
+  }
+
+  .section-link {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    border-radius: 16px;
+  }
+
+  .section-title-wrapper {
+    padding: 0.85rem;
+  }
+
+  .section-title h2 {
+    font-size: 1.25rem;
+  }
+
+  .section-title p {
+    font-size: 0.9rem;
   }
 }
 </style>

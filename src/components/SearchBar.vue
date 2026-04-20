@@ -76,6 +76,7 @@ const router = useRouter()
 const topicStore = useTopicStore()
 const allTopicsCurricula = ref({})
 const loading = ref(false)
+const emit = defineEmits(['search-closed', 'search-opened'])
 
 // Load curricula for all available topics
 const loadAllCurricula = async () => {
@@ -117,6 +118,10 @@ const loadAllCurricula = async () => {
   }
 }
 
+function matches(text, query) {
+  return typeof text === 'string' && text.toLowerCase().includes(query)
+}
+
 // Search logic
 const searchResults = computed(() => {
   if (!searchQuery.value.trim()) return []
@@ -125,91 +130,81 @@ const searchResults = computed(() => {
   const results = []
   const topics = Object.keys(allTopicsCurricula.value)
 
-  // First search through all interview questions
   for (const topic of topics) {
     const topicData = allTopicsCurricula.value[topic]
     const topicLabel = topicStore.availableTopics.find((t) => t.value === topic)?.label || topic
 
-    // Check if interview questions match
+    // Interview questions entry point
     if (topicData.interviewQuestions && topicData.interviewQuestions.length > 0) {
       if (`${topicLabel} interview questions`.toLowerCase().includes(query)) {
         results.push({
           type: 'interview',
           title: `${topicLabel} Interview Questions`,
-          path: {
-            name: 'interview-questions',
-            params: { topic },
-          },
+          path: { name: 'interview-questions' },
           context: `Review common ${topicLabel} interview questions`,
           topic: topicLabel,
+          topicValue: topic,
         })
       }
     }
 
-    // Search through curriculum sections and lessons
-    if (topicData.curriculum) {
+    // Full curriculum: sections → lessons → subsections
+    if (Array.isArray(topicData.curriculum)) {
       topicData.curriculum.forEach((section, sectionIndex) => {
-        // Check section title
-        if (section.title.toLowerCase().includes(query)) {
+        if (!section) return
+        if (matches(section.title, query)) {
           results.push({
             type: 'section',
             title: section.title,
             path: {
               name: 'lesson',
-              params: { topic, sectionId: sectionIndex + 1, lessonId: 1 },
+              params: { sectionId: sectionIndex + 1, lessonId: 1 },
             },
             context: section.description,
             topic: topicLabel,
+            topicValue: topic,
           })
         }
 
-        // Check section lessons
-        if (section.lessons) {
+        if (Array.isArray(section.lessons)) {
           section.lessons.forEach((lesson, lessonIndex) => {
-            if (lesson.title.toLowerCase().includes(query)) {
+            if (!lesson) return
+            const lessonPath = {
+              name: 'lesson',
+              params: { sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
+            }
+            if (matches(lesson.title, query)) {
               results.push({
                 type: 'lesson',
                 title: `${section.title}: ${lesson.title}`,
-                path: {
-                  name: 'lesson',
-                  params: { topic, sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
-                },
+                path: lessonPath,
                 context: lesson.description,
                 topic: topicLabel,
+                topicValue: topic,
               })
             }
-
-            // Search through lesson sections if they exist
-            if (lesson.sections) {
+            if (Array.isArray(lesson.sections)) {
               lesson.sections.forEach((subSection) => {
-                if (subSection.title.toLowerCase().includes(query)) {
+                if (!subSection) return
+                if (matches(subSection.title, query)) {
                   results.push({
                     type: 'lesson',
                     title: `${section.title}: ${lesson.title}`,
                     subTitle: subSection.title,
-                    path: {
-                      name: 'lesson',
-                      params: { topic, sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
-                    },
+                    path: lessonPath,
                     context: subSection.title,
                     topic: topicLabel,
+                    topicValue: topic,
                   })
                 }
-
-                // Deep search in explanation text
-                if (
-                  subSection.explanation &&
-                  subSection.explanation.toLowerCase().includes(query)
-                ) {
+                if (matches(subSection.explanation, query)) {
                   results.push({
                     type: 'lesson',
                     title: `${section.title}: ${lesson.title}`,
-                    path: {
-                      name: 'lesson',
-                      params: { topic, sectionId: sectionIndex + 1, lessonId: lessonIndex + 1 },
-                    },
+                    path: lessonPath,
                     context: extractContext(subSection.explanation, query),
                     topic: topicLabel,
+                    topicValue: topic,
                   })
                 }
               })
@@ -219,27 +214,71 @@ const searchResults = computed(() => {
       })
     }
 
-    // Search through shortlist curriculum
-    if (topicData.shortlist) {
-      topicData.shortlist.forEach((section, sectionIndex) => {
-        if (section.title.toLowerCase().includes(query)) {
+    // Shortlist (minicourse recapper): single section with lessons + subsections
+    if (Array.isArray(topicData.shortlist)) {
+      topicData.shortlist.forEach((section) => {
+        if (!section) return
+        if (matches(section.title, query)) {
           results.push({
             type: 'shortlist',
             title: section.title,
-            path: {
-              name: 'shortlist',
-              params: { topic, sectionId: sectionIndex + 1 },
-            },
+            path: { name: 'shortlist' },
             context: section.description,
             topic: topicLabel,
+            topicValue: topic,
+          })
+        }
+
+        if (Array.isArray(section.lessons)) {
+          section.lessons.forEach((lesson, lessonIndex) => {
+            if (!lesson) return
+            const lessonPath = {
+              name: 'shortlist-lesson',
+              params: { lessonId: lessonIndex + 1 },
+            }
+            if (matches(lesson.title, query)) {
+              results.push({
+                type: 'shortlist',
+                title: `${section.title}: ${lesson.title}`,
+                path: lessonPath,
+                context: lesson.description,
+                topic: topicLabel,
+                topicValue: topic,
+              })
+            }
+            if (Array.isArray(lesson.sections)) {
+              lesson.sections.forEach((subSection) => {
+                if (!subSection) return
+                if (matches(subSection.title, query)) {
+                  results.push({
+                    type: 'shortlist',
+                    title: `${section.title}: ${lesson.title}`,
+                    subTitle: subSection.title,
+                    path: lessonPath,
+                    context: subSection.title,
+                    topic: topicLabel,
+                    topicValue: topic,
+                  })
+                }
+                if (matches(subSection.explanation, query)) {
+                  results.push({
+                    type: 'shortlist',
+                    title: `${section.title}: ${lesson.title}`,
+                    path: lessonPath,
+                    context: extractContext(subSection.explanation, query),
+                    topic: topicLabel,
+                    topicValue: topic,
+                  })
+                }
+              })
+            }
           })
         }
       })
     }
   }
 
-  // Limit to avoid too many results
-  return results.slice(0, 10)
+  return results.slice(0, 20)
 })
 
 // Reset selected index when search results change
@@ -319,6 +358,15 @@ function selectResult() {
 function navigateToResult(result) {
   // Clear search before navigation to ensure clean state
   clearSearch()
+  // Notify the parent (mobile overlay needs to close so the user sees the
+  // destination page instead of the still-open search UI).
+  emit('search-closed')
+  // Results span every topic, so switch the store's current topic when the
+  // hit belongs to a different one — otherwise the route resolves against
+  // the wrong curriculum and shows "lesson not found".
+  if (result.topicValue && result.topicValue !== topicStore.currentTopic) {
+    topicStore.setTopic(result.topicValue)
+  }
   // Use nextTick to ensure DOM updates before navigation
   nextTick(() => {
     router.push(result.path)
