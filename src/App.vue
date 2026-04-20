@@ -221,7 +221,8 @@ watch(
 }
 
 @media (max-width: 767px) {
-  .content-area {
+  .content-area,
+  .sidebar-collapsed .content-area {
     margin-left: 0;
     width: 100%;
     transition:

@@ -1,26 +1,43 @@
 <template>
   <div class="search-container" :class="{ active: isSearchActive }">
     <div class="search-input-wrapper">
-      <i class="bi bi-search search-icon"></i>
-      <input
-        ref="searchInput"
-        v-model="searchQuery"
-        type="text"
-        class="search-input"
-        placeholder="Search curriculum..."
-        @focus="isSearchActive = true"
-        @blur="handleBlur"
-        @keydown.esc="clearSearch"
-        @keydown.down.prevent="navigateResults(1)"
-        @keydown.up.prevent="navigateResults(-1)"
-        @keydown.enter="selectResult"
-      />
-      <i
+      <div class="search-input-inner">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          ref="searchInput"
+          v-model="searchQuery"
+          type="search"
+          enterkeyhint="search"
+          inputmode="search"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          class="search-input"
+          placeholder="Search curriculum..."
+          @focus="isSearchActive = true"
+          @blur="handleBlur"
+          @keydown.esc="clearSearch"
+          @keydown.down.prevent="onArrowDown"
+          @keydown.up.prevent="onArrowUp"
+          @keydown.enter.prevent="onEnter"
+        />
+        <i
+          v-if="searchQuery"
+          class="bi bi-x-circle clear-icon"
+          @click="clearSearch"
+          @mousedown.prevent
+        ></i>
+      </div>
+      <button
         v-if="searchQuery"
-        class="bi bi-x-circle clear-icon"
-        @click="clearSearch"
+        type="button"
+        class="search-find-btn"
         @mousedown.prevent
-      ></i>
+        @click="commitSearch"
+        aria-label="Hide keyboard and show results"
+      >
+        <span>Search</span>
+      </button>
     </div>
 
     <div v-if="isSearchActive && searchResults.length > 0" class="search-results">
@@ -289,6 +306,7 @@ watch(searchResults, () => {
 // Reset selected index when search query changes
 watch(searchQuery, () => {
   selectedIndex.value = 0
+  hasArrowNavigated.value = false
 })
 
 // Extract context around the match
@@ -324,13 +342,23 @@ function clearSearch() {
   selectedIndex.value = 0
 }
 
+// Tracks whether the user has moved selection with the arrow keys.
+// Reset on each query change — we only treat Enter as "open the highlighted
+// result" after an explicit up/down navigation, otherwise Enter on mobile
+// should dismiss the keyboard without navigating away.
+const hasArrowNavigated = ref(false)
+
 // Handle input blur with improved focus check
 function handleBlur(event) {
-  // More reliable blur handling that doesn't interfere with result selection
   setTimeout(() => {
-    // Check if focus is still within the search container
     const searchContainer = event.target.closest('.search-container')
     const activeElement = document.activeElement
+
+    // Mobile flow: tapping Done/Go blurs the input so the on-screen keyboard
+    // hides. Keep the results panel open as long as a query is entered so
+    // the user can scroll and tap a result. The panel only closes via the
+    // clear (X) / Esc, or when the user taps outside the container.
+    if (searchQuery.value.trim()) return
 
     if (!searchContainer.contains(activeElement)) {
       isSearchActive.value = false
@@ -338,20 +366,38 @@ function handleBlur(event) {
   }, 200)
 }
 
-// Navigate through results with keyboard
-function navigateResults(direction) {
+// Arrow-key navigation of the results list (desktop power-user flow).
+function onArrowDown() {
   if (searchResults.value.length === 0) return
+  hasArrowNavigated.value = true
+  const next = selectedIndex.value + 1
+  if (next < searchResults.value.length) selectedIndex.value = next
+}
 
-  const newIndex = selectedIndex.value + direction
-  if (newIndex >= 0 && newIndex < searchResults.value.length) {
-    selectedIndex.value = newIndex
+function onArrowUp() {
+  if (searchResults.value.length === 0) return
+  hasArrowNavigated.value = true
+  const next = selectedIndex.value - 1
+  if (next >= 0) selectedIndex.value = next
+}
+
+// Enter / mobile "Go" behaviour:
+// - If the user has explicitly highlighted a result via arrow keys, open it
+//   (desktop keyboard flow stays intact).
+// - Otherwise treat it as "commit" — blur the input so the mobile keyboard
+//   hides and the live results list is fully visible. No auto-navigation.
+function onEnter() {
+  if (hasArrowNavigated.value && searchResults.value.length > 0) {
+    navigateToResult(searchResults.value[selectedIndex.value])
+  } else {
+    commitSearch()
   }
 }
 
-// Select the currently highlighted result
-function selectResult() {
-  if (searchResults.value.length === 0) return
-  navigateToResult(searchResults.value[selectedIndex.value])
+// Mobile-friendly commit: dismiss the on-screen keyboard but keep results
+// open so the user can tap a specific result.
+function commitSearch() {
+  if (searchInput.value) searchInput.value.blur()
 }
 
 // Navigate to the selected result
@@ -418,9 +464,17 @@ onBeforeUnmount(() => {
 }
 
 .search-input-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-input-inner {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .search-input {
@@ -433,6 +487,64 @@ onBeforeUnmount(() => {
   color: var(--text-color);
   transition: all 0.3s ease;
   font-size: 0.9rem;
+}
+
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-find-btn {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 0 14px;
+  height: 40px;
+  border-radius: 20px;
+  border: 1px solid var(--primary-color-dark, var(--primary-color));
+  background-color: var(--primary-color-dark, var(--primary-color));
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.search-find-btn:hover:not(:disabled) {
+  background-color: var(--primary-color-dark, var(--primary-color));
+  border-color: var(--primary-color-dark, var(--primary-color));
+}
+
+.search-find-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.search-find-btn i {
+  font-size: 0.95rem;
+}
+
+.search-hint {
+  margin-top: 10px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background-color: rgba(var(--primary-color-rgb, 79, 70, 229), 0.08);
+  border: 1px dashed rgba(var(--primary-color-rgb, 79, 70, 229), 0.3);
+  border-radius: 6px;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-hint strong {
+  color: var(--text-color);
 }
 
 .search-input:focus {
@@ -461,9 +573,9 @@ onBeforeUnmount(() => {
 .search-results {
   position: absolute;
   width: 500px;
+  max-width: calc(100vw - 32px);
   top: 100%;
   left: 0;
-  right: 0;
   margin-top: 8px;
   background-color: var(--bg-card);
   border-radius: 8px;
@@ -579,13 +691,39 @@ mark {
 
 /* Responsive styles */
 @media (max-width: 768px) {
-  .search-container {
-    max-width: 220px;
+  /* Inside the full-screen mobile overlay — stretch to the overlay's
+     inner width (~90% of the screen after the overlay's 1rem padding). */
+  .mobile-search-overlay .search-container {
+    width: 100%;
+    max-width: none;
   }
 
-  .search-input {
-    height: 32px;
-    font-size: 0.8rem;
+  .mobile-search-overlay .search-input-wrapper {
+    width: 100%;
+  }
+
+  .mobile-search-overlay .search-input {
+    height: 44px;
+    font-size: 1rem; /* 16px so iOS does not auto-zoom on focus */
+    padding: 0 44px;
+  }
+
+  .mobile-search-overlay .search-icon,
+  .mobile-search-overlay .clear-icon {
+    font-size: 1.05rem;
+  }
+
+  .mobile-search-overlay .search-find-btn {
+    display: inline-flex;
+  }
+
+  .mobile-search-overlay .search-results,
+  .mobile-search-overlay .search-no-results {
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 10px;
+    max-height: calc(100vh - 220px);
   }
 }
 </style>
