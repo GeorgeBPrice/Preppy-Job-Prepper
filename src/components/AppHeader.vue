@@ -10,7 +10,6 @@
 
           <!-- Logo -->
           <div class="logo">
-            <router-link to="/">
               <svg width="50" height="30" viewBox="0 0 70 40" class="logo-svg">
                 <defs>
                   <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -30,7 +29,6 @@
                   PreppY
                 </text>
               </svg>
-            </router-link>
           </div>
 
           <!-- Topic Selector Dropdown -->
@@ -111,6 +109,28 @@
             Resume
           </button>
 
+          <!-- Mobile-only search trigger -->
+          <button
+            type="button"
+            class="icon-only-btn d-md-none"
+            aria-label="Open search"
+            @click="searchExpanded = true"
+          >
+            <i class="bi bi-search"></i>
+          </button>
+
+          <!-- Mobile-only Preppy AI toggle (icon only) -->
+          <button
+            type="button"
+            class="icon-only-btn preppy-ai-btn-mobile d-md-none"
+            :class="{ active: aiChatStore.isOpen }"
+            :aria-pressed="aiChatStore.isOpen"
+            aria-label="Toggle Preppy AI chat"
+            @click="aiChatStore.toggleChat()"
+          >
+            <i class="bi bi-chat-dots"></i>
+          </button>
+
           <ThemeToggle />
         </div>
       </div>
@@ -118,6 +138,17 @@
 
     <!-- Mobile full-screen search overlay -->
     <div v-if="searchExpanded" class="mobile-search-overlay d-md-none">
+      <div class="mobile-search-overlay__header">
+        <span>Search</span>
+        <button
+          type="button"
+          class="icon-only-btn"
+          aria-label="Close search"
+          @click="searchExpanded = false"
+        >
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
       <SearchBar @search-closed="searchExpanded = false" @search-opened="searchExpanded = true" />
     </div>
   </header>
@@ -427,6 +458,49 @@ h1 {
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-search-overlay__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  color: var(--text-color);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.icon-only-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1.05rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.icon-only-btn:hover,
+.icon-only-btn:focus-visible {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
+}
+
+.preppy-ai-btn-mobile.active {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
 }
 
 /* Topic selector styles */
@@ -470,7 +544,7 @@ h1 {
   background-color: var(--bg-content);
   color: var(--text-color);
   font-size: 0.8rem;
-  max-width: 95px;
+  max-width: 125px;
   outline: none;
 }
 
@@ -481,8 +555,23 @@ h1 {
   }
 
   .topic-select-mobile {
-    max-width: 80px;
-    font-size: 0.75rem;
+    max-width: 120px;
+    font-size: 0.8rem;
+  }
+
+  .progress-container,
+  .continue-btn {
+    display: none !important;
+  }
+
+  .header-right {
+    gap: 0.35rem;
+  }
+
+  .icon-only-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
   }
 }
 

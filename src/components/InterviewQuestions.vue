@@ -343,14 +343,38 @@ body.dark-mode .answer-content code {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  /* Horizontal scroll strip so the question list below stays
+     visible instead of being pushed off-screen by a full-height
+     stack of category buttons. */
   .section-tabs {
-    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     gap: 6px;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section-tabs::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .section-tabs::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 2px;
   }
 
   .tab-button {
-    width: 100%;
-    text-align: left;
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .tab-button:hover:not(.active) {
+    transform: none;
   }
 
   .question-header {

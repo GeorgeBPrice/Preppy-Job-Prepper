@@ -9,11 +9,13 @@ This is a **static application**, meaning it does not require a database to run.
 ## AI-Powered Features
 
 ### **Preppy Chat Bot Assistant**
-- **Context-Aware AI Chat**: Interactive "Ask Preppy" assistant that understands your current topic and lesson context
+- **Context-Aware AI Chat**: Interactive "Ask Preppy" assistant that understands your current topic, section, lesson, and subsection in real time
 - **Real-Time Streaming Responses**: Get instant, streaming AI responses as the model generates them (SSE support)
 - **Multi-Conversation Management**: Create, switch between, and manage multiple conversation threads
+- **Lesson Quick-Action Buttons**: A scoped `Ask Preppy:` row above every lesson subsection with one-click prompts — *Ask questions* (scopes chat to the current block), *Explain simpler* (prose only, no code), *More examples*, *Quiz me*, and *Practice problem*
+- **Collapsible User Messages**: Long, context-heavy prompts automatically clamp to ~3 lines with a *Show more / Show less* toggle so the chat UI isn't dominated by walls of injected context
 - **Topic-Specific Assistance**: Automatically includes current lesson content and section context in conversations
-- **Mobile-Responsive Design**: Expandable chat panel that adapts to desktop, tablet, and mobile screens
+- **Mobile-Responsive Design**: Expandable chat panel that adapts to desktop, tablet, and mobile screens, with an icon-only *Preppy AI* trigger in the mobile header
 - **Customizable System Prompts**: Configure AI behavior with custom system prompts for personalized learning
 - **Markdown-Rendered Responses**: Beautifully formatted AI responses with syntax-highlighted code blocks
 
@@ -65,11 +67,17 @@ Choose from **25+ AI models** across multiple providers:
 
 - **Multi-Language Support**: Learn and practice across JavaScript, TypeScript, React, C#, DevOps, and AI technologies.
 - **Interactive Lessons**: Engage with detailed lessons across core areas for each technology, from fundamentals to advanced concepts.
-- **Extensive Interview Questions**: Review comprehensive, well-formatted interview questions for each technology.
+- **Extensive Interview Questions**: Review comprehensive, well-formatted interview questions for each technology, with a mobile-optimized horizontal category strip so questions load in view immediately.
+- **Minicourse Recapper**: Compact "essential concepts" review pass for every topic, with a mobile layout tuned so *Jump to* badges wrap cleanly instead of clipping.
 - **Code Challenges**: Practice your skills with hands-on coding exercises and challenges.
-- **Enhanced Progress Tracking**: Monitor your learning progress with an improved reactive tracking system.
-- **Code Editor**: Write, save, and preview your solutions with syntax highlighting powered by Prism.js.
+- **Enhanced Progress Tracking**: Monitor your learning progress with an improved reactive tracking system — now keyed by content-stable IDs so reordering or renaming curriculum sections no longer loses completion state.
+- **In-Sidebar Completion Toggles**: Tick any lesson complete directly from the sidebar; the in-lesson *Mark Completed* pill stays in sync.
+- **In-Lesson Top Navigation**: Previous / next chevrons plus a *Mark Completed* pill pinned to the top of every lesson for one-tap navigation on mobile.
+- **Breadcrumb Navigation**: Topic › Section › Lesson trail in the header replaces raw URLs with human-readable context.
+- **Keyboard Shortcuts**: Developer-friendly shortcuts (`Ctrl/⌘ K` search, `Ctrl/⌘ ;` toggle Preppy AI, `j`/`k` lesson nav, `c` toggle complete, `?` cheatsheet) with an in-app help modal.
+- **Code Editor**: Write, save, and preview your solutions with syntax highlighting powered by Prism.js — now with full lesson context passed through to AI grading.
 - **Static Deployment**: Run the app entirely on the client side with no server or database required.
+- **Resilient Storage Layer**: Progress persists via `localStorage` with a size-aware cookie summary fallback so large curriculum state is never silently truncated.
 
 <img width="682" alt="Add you own API key" src="https://github.com/user-attachments/assets/a5a60595-fe68-4ff2-bffe-6a5352de7c9e" />
 
@@ -108,7 +116,7 @@ Choose from **25+ AI models** across multiple providers:
 
 ## Version
 
-1.1.0
+1.2.0
 
 ## Known Issues
 
@@ -241,6 +249,32 @@ Contributions are disabled for now. Feel free to email me any concerns or sugges
 This project is licensed under a custom license that allows downloading and using the software but prohibits modification and redistribution. See the [LICENSE](LICENSE) file for details.
 
 ## Updates
+
+### v1.2.0 - Audit Review UX + AI Overhaul (April 2026)
+
+Delivers the first wave of the Audit Review plan — bug fixes, core UX wins, and lesson-level AI integration.
+
+**Bug fixes (from the audit)**
+- **AI grading now knows the lesson**: removed the broken `window.curriculum` escape hatch in `CodeEditor.vue`; section + challenge context is resolved through `curriculumLoader` and passed explicitly into grading prompts.
+- **Progress storage no longer silently drops data**: `storage.js` stops blindly writing full progress blobs to a 4 KB cookie; `localStorage` is primary, with a compact cookie summary used only as a size-safe continuity hint.
+- **Content-stable progress keys**: every section and lesson now has a stable string ID (`src/utils/curriculumIds.js` + `scripts/validate-curriculum-ids.mjs` CI validator). Progress is keyed by `{ topic, sectionId, lessonId }`, so curriculum reorders no longer wipe or mis-target completion state. A one-time client-side migrator upgrades existing users.
+
+**AI wins**
+- **Lesson quick-action buttons**: a compact `Ask Preppy:` row above every lesson subsection with one-click templates — *Ask questions* (primes the chat to stay scoped to the current block), *Explain simpler* (written prose only, no code samples), *More examples*, *Quiz me*, *Practice problem*.
+- **Collapsible long user messages**: context-heavy prompts in the chat clamp to ~3 lines with a fade mask and a rounded *Show more / Show less* toggle.
+- **Richer context injection**: Preppy chat automatically includes topic, section, lesson, and subsection as a conversation context label.
+
+**UI / UX wins**
+- **Preppy AI header button**: primary access from every page, with dark-mode contrast fixed (uses `--primary-color-dark`) and a mobile icon-only variant.
+- **Breadcrumb trail**: Topic › Section › Lesson replacing raw URLs (`AppBreadcrumb.vue`).
+- **Lesson top navigation**: previous / next chevrons and a consolidated *Mark Completed* pill at the top of every lesson.
+- **Sidebar completion ticks**: tick any lesson complete directly from the sidebar; fully synced with the in-lesson toggle.
+- **Keyboard shortcuts**: `Ctrl/⌘ K` (search), `Ctrl/⌘ ;` (toggle Preppy AI), `j` / `k` (prev / next lesson), `c` (toggle complete), `?` (shortcut cheatsheet). Implemented once in `useKeyboardShortcuts.js` and mounted in `App.vue`.
+- **Topic landing pages** (`TopicHomeView.vue`) with a disabled *Start Learning* button for topics without curriculum yet.
+- **Search UX**: search overlay auto-closes on result selection on mobile; expanded to search across all topics.
+- **HomeView progress**: All Topics cards now show actual progress and sort in-progress topics first; *Three Ways to Study* cards are compacted with corner-offset icons.
+- **Mobile polish**: horizontal scroll strip for Interview Questions categories (so the question list stays visible below); minicourse-recapper lesson card drops its icon on small screens and compacts *Jump to* badges; topic selector widened so options don't clip.
+- **Code-example syntax styling**: refreshed Prism theme for in-lesson code blocks across JS, TS, JSX, C#, Python, YAML, CSS, and markup.
 
 ### v1.1.0 - Content and UI Overhaul (May 2025)
 

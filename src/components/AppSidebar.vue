@@ -17,6 +17,30 @@
       <div class="sidebar-nav-button sidebar-toggle d-none d-md-flex" @click="$emit('toggle')">
         <i class="bi" :class="isCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
       </div>
+
+      <!-- Mobile-only header row: topic label + close -->
+      <div class="sidebar-mobile-header d-md-none">
+        <router-link
+          to="/"
+          class="sidebar-mobile-home"
+          :class="{ active: isHomeActive() }"
+          aria-label="Home"
+          @click="closeMobileMenuOnNavigation"
+        >
+          <i class="bi bi-house-door-fill"></i>
+        </router-link>
+        <span class="sidebar-mobile-title">
+          {{ isLandingPage ? 'Preppy' : topicStore.currentTopicName }}
+        </span>
+        <button
+          type="button"
+          class="sidebar-mobile-close"
+          aria-label="Close menu"
+          @click="$emit('close')"
+        >
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
     </div>
 
     <!-- Curriculum Menu -->
@@ -86,19 +110,42 @@
         </div>
 
         <div v-if="openSections.includes(index) && !isCollapsed" class="lesson-list">
-          <router-link
+          <div
             v-for="(lesson, lessonIndex) in section.lessons"
             :key="`lesson-${lessonIndex}`"
-            :to="{ name: 'lesson', params: { sectionId: index + 1, lessonId: lessonIndex + 1 } }"
-            class="lesson-item"
-            :class="{
-              completed: isLessonCompleted(index, lessonIndex),
-              active: isLessonActive(index, lessonIndex),
-            }"
-            @click="closeMobileMenuOnNavigation"
+            class="lesson-row"
           >
-            {{ lesson.title }}
-          </router-link>
+            <button
+              type="button"
+              class="lesson-tick"
+              :class="{ checked: isLessonCompleted(index, lessonIndex) }"
+              :aria-pressed="isLessonCompleted(index, lessonIndex)"
+              :aria-label="
+                isLessonCompleted(index, lessonIndex)
+                  ? `Mark lesson ${lesson.title} as not completed`
+                  : `Mark lesson ${lesson.title} as completed`
+              "
+              @click.stop.prevent="toggleLessonCompletion(index, lessonIndex)"
+            >
+              <i
+                class="bi"
+                :class="
+                  isLessonCompleted(index, lessonIndex) ? 'bi-check-square-fill' : 'bi-square'
+                "
+              ></i>
+            </button>
+            <router-link
+              :to="{ name: 'lesson', params: { sectionId: index + 1, lessonId: lessonIndex + 1 } }"
+              class="lesson-item"
+              :class="{
+                completed: isLessonCompleted(index, lessonIndex),
+                active: isLessonActive(index, lessonIndex),
+              }"
+              @click="closeMobileMenuOnNavigation"
+            >
+              {{ lesson.title }}
+            </router-link>
+          </div>
 
           <router-link
             :to="{ name: 'challenge', params: { sectionId: index + 1 } }"
@@ -184,6 +231,7 @@ function selectTopicFromLanding(topicValue) {
     topicStore.setTopic(topicValue)
   }
   router.push({ name: 'topic-home' })
+  closeMobileMenuOnNavigation()
 }
 const progressStore = useProgressStore()
 const topicStore = useTopicStore()
@@ -434,7 +482,17 @@ const isSectionCompleted = (sectionIndex) => {
 }
 
 const isLessonCompleted = (sectionIndex, lessonIndex) => {
+  // Reference _forceUpdate so the tick re-renders when the store mutates.
+  void progressStore._forceUpdate
   return progressStore.isLessonCompleted(sectionIndex, lessonIndex)
+}
+
+const toggleLessonCompletion = (sectionIndex, lessonIndex) => {
+  if (progressStore.isLessonCompleted(sectionIndex, lessonIndex)) {
+    progressStore.uncompleteLesson(sectionIndex, lessonIndex, true)
+  } else {
+    progressStore.completeLesson(sectionIndex, lessonIndex, true)
+  }
 }
 
 const isChallengeCompleted = (sectionIndex) => {
@@ -658,6 +716,48 @@ const closeMobileMenuOnNavigation = () => {
   margin-top: 5px;
 }
 
+.lesson-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.lesson-row .lesson-item {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.lesson-tick {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.lesson-tick:hover,
+.lesson-tick:focus-visible {
+  color: var(--primary-color);
+  background-color: var(--hover-color);
+  outline: none;
+}
+
+.lesson-tick.checked {
+  color: var(--success-color);
+}
+
 .lesson-item,
 .challenge-item {
   display: block;
@@ -873,6 +973,65 @@ a.router-link-active.router-link-exact-active.interview-nav-link {
   .sidebar-resize-handle {
     display: none;
   }
+
+  .sidebar-landing-placeholder {
+    padding: 20px 14px;
+    margin: 14px 10px;
+  }
+
+  .sidebar-topic-btn {
+    padding: 10px 12px;
+    font-size: 0.95rem;
+  }
+}
+
+.sidebar-mobile-header {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  gap: 8px;
+  color: var(--text-color);
+}
+
+.sidebar-mobile-home,
+.sidebar-mobile-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-sidebar);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1rem;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sidebar-mobile-home:hover,
+.sidebar-mobile-home.active,
+.sidebar-mobile-close:hover {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
+}
+
+.sidebar-mobile-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*  Resize handle, draggable edge */

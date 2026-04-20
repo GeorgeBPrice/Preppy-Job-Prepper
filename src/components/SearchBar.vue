@@ -76,6 +76,7 @@ const router = useRouter()
 const topicStore = useTopicStore()
 const allTopicsCurricula = ref({})
 const loading = ref(false)
+const emit = defineEmits(['search-closed', 'search-opened'])
 
 // Load curricula for all available topics
 const loadAllCurricula = async () => {
@@ -357,6 +358,9 @@ function selectResult() {
 function navigateToResult(result) {
   // Clear search before navigation to ensure clean state
   clearSearch()
+  // Notify the parent (mobile overlay needs to close so the user sees the
+  // destination page instead of the still-open search UI).
+  emit('search-closed')
   // Results span every topic, so switch the store's current topic when the
   // hit belongs to a different one — otherwise the route resolves against
   // the wrong curriculum and shows "lesson not found".

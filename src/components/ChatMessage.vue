@@ -14,17 +14,30 @@
         <div v-html="formattedContent" class="markdown-content"></div>
         <span v-if="isStreaming" class="typing-cursor"></span>
       </div>
-      <div class="message-body" v-else>
-        {{ message.content }}
+      <div class="message-body user-body" v-else>
+        <div class="user-text" :class="{ clamped: isLong && !expanded }">
+          {{ message.content }}
+        </div>
+        <button
+          v-if="isLong"
+          type="button"
+          class="toggle-expand-btn"
+          @click="expanded = !expanded"
+        >
+          <i class="bi" :class="expanded ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+          {{ expanded ? 'Show less' : 'Show more' }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { formatMarkdown, resetStreamingState } from '../theme/markdownFormatter'
 import { useAIChatStore } from '../store/aiChat'
+
+const LONG_USER_MESSAGE_CHARS = 240
 
 const aiChatStore = useAIChatStore()
 
@@ -76,6 +89,14 @@ const formattedTime = computed(() => {
   } catch {
     return ''
   }
+})
+
+const expanded = ref(false)
+
+const isLong = computed(() => {
+  if (role.value !== 'user') return false
+  const content = props.message.content || ''
+  return content.length > LONG_USER_MESSAGE_CHARS || content.split('\n').length > 4
 })
 
 const formattedContent = computed(() => {
@@ -186,6 +207,48 @@ const formattedContent = computed(() => {
   overflow-wrap: break-word;
   word-break: break-word;
   position: relative;
+}
+
+.user-body {
+  white-space: pre-wrap;
+}
+
+.user-text.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+}
+
+.toggle-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  background-color: transparent;
+  border: 1px solid rgba(var(--primary-color-rgb), 0.3);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.toggle-expand-btn:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+  border-color: var(--primary-color);
+}
+
+.toggle-expand-btn i {
+  font-size: 0.8rem;
 }
 
 .typing-cursor {

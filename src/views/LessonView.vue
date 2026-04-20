@@ -23,6 +23,39 @@
     </div>
 
     <div v-else class="lesson-content">
+      <div class="lesson-top-nav">
+        <button
+          type="button"
+          class="lesson-nav-icon"
+          :disabled="!hasPrevious"
+          aria-label="Previous lesson"
+          title="Previous lesson"
+          @click="navigateToPrevious"
+        >
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button
+          type="button"
+          class="lesson-mark-complete"
+          :class="{ completed: isCompleted }"
+          :aria-pressed="isCompleted"
+          @click="toggleLessonComplete"
+        >
+          <i class="bi" :class="isCompleted ? 'bi-check-square-fill' : 'bi-square'"></i>
+          <span>{{ isCompleted ? 'Completed' : 'Mark Completed' }}</span>
+        </button>
+        <button
+          type="button"
+          class="lesson-nav-icon"
+          :disabled="!hasNext"
+          aria-label="Next lesson"
+          title="Next lesson"
+          @click="navigateToNext"
+        >
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+
       <CurriculumContent
         :sectionId="Number(sectionId)"
         :lessonId="Number(lessonId)"
@@ -95,6 +128,21 @@ const checkCompletion = () => {
   const lessonIndex = Number(lessonId.value) - 1
 
   isCompleted.value = progressStore.isLessonCompleted(sectionIndex, lessonIndex)
+}
+
+const toggleLessonComplete = () => {
+  if (!validSection.value || !validLesson.value) return
+
+  const sectionIndex = Number(sectionId.value) - 1
+  const lessonIndex = Number(lessonId.value) - 1
+
+  if (isCompleted.value) {
+    progressStore.uncompleteLesson(sectionIndex, lessonIndex, true)
+    isCompleted.value = false
+  } else {
+    progressStore.completeLesson(sectionIndex, lessonIndex, true)
+    isCompleted.value = true
+  }
 }
 
 const hasPrevious = computed(() => {
@@ -189,6 +237,10 @@ onMounted(() => {
 watch([sectionId, lessonId, () => topicStore.currentTopic], () => {
   loadContent()
 })
+
+// Keep the mark-complete toggle in sync when completion is changed from
+// elsewhere (e.g. the sidebar tick for this lesson).
+watch(() => progressStore._forceUpdate, checkCompletion)
 </script>
 
 <style scoped>
@@ -221,5 +273,93 @@ watch([sectionId, lessonId, () => topicStore.currentTopic], () => {
 .lesson-content {
   max-width: 900px;
   margin: 0 auto;
+}
+
+.lesson-top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.lesson-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.lesson-nav-icon:hover:not(:disabled),
+.lesson-nav-icon:focus-visible:not(:disabled) {
+  background-color: var(--primary-color-dark);
+  color: #fff;
+  border-color: var(--primary-color-dark);
+}
+
+.lesson-nav-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.lesson-mark-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-content);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.lesson-mark-complete:hover,
+.lesson-mark-complete:focus-visible {
+  border-color: var(--primary-color-dark);
+  color: var(--primary-color-dark);
+}
+
+.lesson-mark-complete.completed {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  color: #fff;
+}
+
+.lesson-mark-complete.completed:hover,
+.lesson-mark-complete.completed:focus-visible {
+  opacity: 0.9;
+  color: #fff;
+}
+
+@media (max-width: 576px) {
+  .lesson-mark-complete span {
+    display: none;
+  }
+  .lesson-mark-complete {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 8px;
+  }
 }
 </style>

@@ -38,11 +38,11 @@ function body(ctx) {
 
 export const LESSON_QUICK_ACTIONS = [
   {
-    id: 'simpler',
-    label: 'Explain simpler',
-    icon: 'bi-emoji-smile',
+    id: 'ask',
+    label: 'Ask questions',
+    icon: 'bi-chat-dots',
     build(ctx) {
-      return `Please re-explain the following concept for a beginner — shorter sentences, concrete examples, skip jargon.
+      return `I'd like to ask you questions about the specific lesson block below. Please keep every answer scoped strictly to this content — do not branch into unrelated topics or add material that isn't grounded in the block. Acknowledge briefly, then wait for my first question.
 
 ${header(ctx)}
 
@@ -51,11 +51,11 @@ ${body(ctx)}`
     },
   },
   {
-    id: 'deeper',
-    label: 'Explain deeper',
-    icon: 'bi-zoom-in',
+    id: 'simpler',
+    label: 'Explain simpler',
+    icon: 'bi-zoom-out',
     build(ctx) {
-      return `Please go deeper on the following concept — edge cases, common gotchas, how experienced ${ctx.topic || 'engineers'} reason about it, and how it tends to come up in interviews.
+      return `Please re-explain the following concept for a complete beginner — shorter sentences, plain language, skip jargon, and lean on everyday analogies. Do NOT include any code samples or code blocks in your response; keep it purely written prose.
 
 ${header(ctx)}
 
