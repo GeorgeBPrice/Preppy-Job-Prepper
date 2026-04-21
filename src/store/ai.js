@@ -1,15 +1,33 @@
 import { defineStore } from 'pinia'
 import { saveToStorage, loadFromStorage } from '../utils/storage'
 import { useTopicStore } from './topic'
+import {
+  availableProviders as catalogueProviders,
+  getProvider,
+  resolveProviderKey,
+  PROVIDERS,
+  DEFAULT_GRADING_PROVIDER,
+} from '../utils/aiProviders'
 
 const STORAGE_KEY = 'js_job_review_ai_settings'
 const RESPONSES_STORAGE_KEY = 'js_job_review_ai_responses'
 
+// Read the stored provider key and migrate deprecated values forward so
+// existing users land on a live provider even if they saved a stale key.
+function initialProvider() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return DEFAULT_GRADING_PROVIDER
+    const parsed = JSON.parse(raw)
+    return resolveProviderKey(parsed.provider || DEFAULT_GRADING_PROVIDER)
+  } catch {
+    return DEFAULT_GRADING_PROVIDER
+  }
+}
+
 export const useAIStore = defineStore('ai', {
   state: () => ({
-    provider: localStorage.getItem(STORAGE_KEY)
-      ? JSON.parse(localStorage.getItem(STORAGE_KEY)).provider
-      : 'claude-3-7-sonnet',
+    provider: initialProvider(),
     apiKey: '',
     customModel: '',
     customEndpoint: '',
@@ -27,79 +45,16 @@ export const useAIStore = defineStore('ai', {
 
   getters: {
     availableProviders() {
-      return [
-        { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
-        { value: 'claude-3-7-sonnet', label: 'Claude 3.7 Sonnet' },
-        { value: 'claude-3-opus', label: 'Claude 3 Opus' },
-        { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
-        { value: 'claude-opus-4', label: 'Claude Opus 4' },
-        { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
-        { value: 'gpt-3.5', label: 'GPT-3.5 Turbo' },
-        { value: 'gpt-4', label: 'GPT-4 Turbo' },
-        { value: 'gpt-4o', label: 'GPT-4o' },
-        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-        { value: 'gpt-4.5', label: 'GPT-4.5' },
-        { value: 'gpt-o1', label: 'GPT-o1' },
-        { value: 'gpt-o3', label: 'GPT-o3' },
-        { value: 'gpt-o4-mini', label: 'GPT-o4 Mini' },
-        { value: 'deepseek-reasoner', label: 'DeepSeek-R1' },
-        { value: 'deepseek-r1-distill', label: 'DeepSeek R1 Distill' },
-        { value: 'grok-3', label: 'Grok 3' },
-        { value: 'mistral-large', label: 'Mistral Large' },
-        { value: 'mistral-large-2', label: 'Mistral Large 2' },
-        { value: 'llama-3', label: 'Llama 3' },
-        { value: 'llama-3.1', label: 'Llama 3.1' },
-        { value: 'llama-3.2', label: 'Llama 3.2' },
-        { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-        { value: 'qwen-2.5', label: 'Qwen 2.5' },
-        { value: 'cohere-command-r-plus', label: 'Cohere Command R+' },
-        { value: 'ollama', label: 'Ollama (Local)' },
-        { value: 'other', label: 'Other...' },
-      ]
+      return catalogueProviders()
     },
 
     providerEndpoints() {
-      return {
-        'gpt-3.5': 'https://api.openai.com/v1/chat/completions',
-        'gpt-4': 'https://api.openai.com/v1/chat/completions',
-        'gpt-4o': 'https://api.openai.com/v1/chat/completions',
-        'gpt-4.5': 'https://api.openai.com/v1/chat/completions',
-        'gpt-o1': 'https://api.openai.com/v1/chat/completions',
-        'gpt-o3': 'https://api.openai.com/v1/chat/completions',
-        'gpt-o4-mini': 'https://api.openai.com/v1/chat/completions',
-        'gpt-4o-mini': 'https://api.openai.com/v1/chat/completions',
-        'claude-3-5-sonnet': 'https://api.anthropic.com/v1/messages',
-        'claude-3-7-sonnet': 'https://api.anthropic.com/v1/messages',
-        'claude-3-opus': 'https://api.anthropic.com/v1/messages',
-        'claude-3-haiku': 'https://api.anthropic.com/v1/messages',
-        'claude-opus-4': 'https://api.anthropic.com/v1/messages',
-        'claude-sonnet-4': 'https://api.anthropic.com/v1/messages',
-        'gemini-1.5-pro':
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
-        'gemini-2.5-pro':
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
-        'gemini-2.5-flash':
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-        'deepseek-reasoner': 'https://api.deepseek.com/v1/chat/completions',
-        'deepseek-r1-distill': 'https://api.deepseek.com/v1/chat/completions',
-        'grok-3': 'https://api.x.ai/v1/chat/completions',
-        'mistral-large': 'https://api.mistral.ai/v1/chat/completions',
-        'mistral-large-2': 'https://api.mistral.ai/v1/chat/completions',
-        'qwen-2.5':
-          'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-        'cohere-command-r-plus': 'https://api.cohere.ai/v1/generate',
-        'llama-3': 'https://api.together.xyz/v1/chat/completions',
-        'llama-3.1': 'https://api.together.xyz/v1/chat/completions',
-        'llama-3.2': 'https://api.together.xyz/v1/chat/completions',
-        ollama: 'http://localhost:11434/api/generate',
-      }
+      return Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, p.endpoint]))
     },
 
     currentProviderLabel() {
-      const provider = this.availableProviders.find((p) => p.value === this.provider)
-      return provider ? provider.label : 'Unknown Provider'
+      const p = getProvider(this.provider)
+      return p ? p.label : 'Unknown Provider'
     },
 
     hasApiKey() {
@@ -130,7 +85,8 @@ export const useAIStore = defineStore('ai', {
       const data = loadFromStorage(STORAGE_KEY)
 
       if (data) {
-        this.provider = data.provider || 'claude-3-7-sonnet'
+        // Transparently migrate deprecated provider keys forward.
+        this.provider = resolveProviderKey(data.provider || DEFAULT_GRADING_PROVIDER)
         this.apiKey = data.apiKey || ''
         this.version = data.version || 'latest'
         this.customModel = data.customModel || ''
@@ -146,7 +102,7 @@ export const useAIStore = defineStore('ai', {
     },
 
     setProvider(provider) {
-      this.provider = provider
+      this.provider = resolveProviderKey(provider)
       this.saveSettings()
     },
 

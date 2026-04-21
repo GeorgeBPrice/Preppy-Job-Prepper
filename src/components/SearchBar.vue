@@ -28,16 +28,6 @@
           @mousedown.prevent
         ></i>
       </div>
-      <button
-        v-if="searchQuery"
-        type="button"
-        class="search-find-btn"
-        @mousedown.prevent
-        @click="commitSearch"
-        aria-label="Hide keyboard and show results"
-      >
-        <span>Search</span>
-      </button>
     </div>
 
     <div v-if="isSearchActive && searchResults.length > 0" class="search-results">

@@ -39,6 +39,25 @@ export const useTopicStore = defineStore('topic', {
     hasCurriculum() {
       return this.topicsWithCurriculum.includes(this.currentTopic)
     },
+
+    // Display language for the grading prompt (e.g. "## Idiomatic C#").
+    // Keep the mapping explicit — `currentTopicName` returns UI labels like
+    // "C# .NET" / "Azure DevOps" which make awkward section headers.
+    currentLanguage() {
+      switch (this.currentTopic) {
+        case 'csharp':
+          return 'C#'
+        case 'typescript':
+          return 'TypeScript'
+        case 'devops':
+          return 'YAML'
+        case 'javascript':
+        case 'react':
+        case 'ai':
+        default:
+          return 'JavaScript'
+      }
+    },
   },
 
   actions: {

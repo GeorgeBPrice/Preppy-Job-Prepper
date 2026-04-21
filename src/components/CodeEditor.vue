@@ -245,6 +245,7 @@ const submitAndGradeCode = async () => {
       // Get the current section or lesson details (Context for the LLM)
       let sectionTitle = ''
       let challengeDescription = ''
+      let starterCode = ''
 
       try {
         if (props.isChallenge) {
@@ -255,6 +256,7 @@ const submitAndGradeCode = async () => {
               section.challenge?.description ||
               section.challenge?.instructions ||
               'Complete the coding challenge'
+            starterCode = section.challenge?.starterCode || ''
           }
         } else {
           const section = await getSection(props.sectionId)
@@ -284,6 +286,8 @@ const submitAndGradeCode = async () => {
         aiStore.customModel,
         aiStore.customEndpoint,
         aiStore.customHeaders,
+        topicStore.currentLanguage,
+        starterCode,
       )
 
       // Set the AI response

@@ -175,12 +175,15 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAIChatStore } from '../store/aiChat'
 import { useTopicStore } from '../store/topic'
 import ChatMessage from './ChatMessage.vue'
 import ChatInput from './ChatInput.vue'
 import ChatSettings from './ChatSettings.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+
+const route = useRoute()
 
 const aiChatStore = useAIChatStore()
 const topicStore = useTopicStore()
@@ -280,20 +283,14 @@ const cancelConfirmDialog = () => {
   actionData.value = null
 }
 
-// Send userss message to the AI
+// Send the user's message to the AI. Context injection no longer happens
+// here — it lives in the structured lessonContext that's rebuilt on every
+// route change (see rebuildContextFromPage below).
 const sendMessage = async (content) => {
   if (!content || !aiChatStore.apiKey) return
 
-  // Include the current topic in the conversation context (Context for the LLM)
-  if (aiChatStore.conversationContext) {
-    aiChatStore.conversationContext += `\nCurrent topic: ${currentTopicName.value}`
-  } else {
-    aiChatStore.setConversationContext(`Current topic: ${currentTopicName.value}`)
-  }
-
   await aiChatStore.sendMessage(content, currentTopicName.value)
 
-  // keep the chat scrolled to the bottom.
   await nextTick()
   scrollToBottom()
 }
@@ -344,34 +341,33 @@ const handleResize = () => {
   isMobileView.value = window.innerWidth < 768
 }
 
-// Set conversation context based on page content
-const setContextFromPage = () => {
+// Rebuild a fresh structured lesson context from the current page DOM.
+// Called on mount and whenever the route changes — the result REPLACES
+// the previous context (no accumulation). The store passes this to
+// buildChatSystemPrompt on every send.
+const rebuildContextFromPage = () => {
   const sectionTitle = document.querySelector('.section-title, .challenge-title')
   const lessonTitle = document.querySelector('.lesson-title')
-
-  let context = ''
-
-  if (sectionTitle) {
-    context += `Section: ${sectionTitle.textContent.trim()}\n`
-  }
-
-  if (lessonTitle) {
-    context += `Lesson: ${lessonTitle.textContent.trim()}\n`
-  }
-
-  // Get trimmed lesson content (Context for the LLM)
   const lessonContent = document.querySelector('.lesson-content, .challenge-description')
+
+  let excerpt = ''
   if (lessonContent) {
-    let contentText = lessonContent.textContent.trim()
-    if (contentText.length > 500) {
-      contentText = contentText.substring(0, 500) + '...'
-    }
-    context += `Content: ${contentText}\n`
+    excerpt = lessonContent.textContent.trim()
+    if (excerpt.length > 500) excerpt = excerpt.substring(0, 500) + '…'
   }
 
-  if (context) {
-    aiChatStore.setConversationContext(context)
+  const hasAny = sectionTitle || lessonTitle || excerpt
+  if (!hasAny) {
+    aiChatStore.setLessonContext(null)
+    return
   }
+
+  aiChatStore.setLessonContext({
+    topic: currentTopicName.value,
+    sectionTitle: sectionTitle ? sectionTitle.textContent.trim() : '',
+    lessonTitle: lessonTitle ? lessonTitle.textContent.trim() : '',
+    excerpt,
+  })
 }
 
 onMounted(() => {
@@ -382,11 +378,22 @@ onMounted(() => {
   window.addEventListener('resize', handleResize)
   document.addEventListener('click', handleClickOutside)
 
-  // Set initial context
-  setContextFromPage()
+  // Set initial context from whatever page is currently rendered.
+  rebuildContextFromPage()
 
   scrollToBottom()
 })
+
+// Rebuild lesson context whenever the user navigates — the previous DOM
+// is torn down and the new page's headers / content drive a fresh context
+// object. nextTick waits for the new route's component to mount before
+// we query the DOM.
+watch(
+  () => route.fullPath,
+  () => {
+    nextTick(() => rebuildContextFromPage())
+  },
+)
 
 onUnmounted(() => {
   // Cleanup

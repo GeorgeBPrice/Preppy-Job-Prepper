@@ -1,9 +1,67 @@
 /**
  * Formats markdown text for optimal display
- * Uses regex to transform markdown elements into styled HTML
+ * Uses regex to transform markdown elements into styled HTML.
+ *
+ * Output is piped through DOMPurify before being returned because the
+ * caller renders it via v-html (ChatMessage.vue renders LLM chat replies;
+ * ChallengeView.vue renders LLM grading responses). LLM output is
+ * untrusted — a prompt-injected response can contain <script>, <iframe>,
+ * onerror=, or javascript: URLs that would otherwise execute in-page.
  */
 
 import Prism from 'prismjs'
+import DOMPurify from 'dompurify'
+
+// Tags the markdown formatter can legitimately emit. Anything else (scripts,
+// iframes, embeds, form controls, svg/math, etc.) is stripped.
+const ALLOWED_TAGS = [
+  'p',
+  'br',
+  'strong',
+  'em',
+  'b',
+  'i',
+  'u',
+  's',
+  'code',
+  'pre',
+  'ul',
+  'ol',
+  'li',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'hr',
+  'blockquote',
+  'a',
+  'span',
+  'div',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'td',
+  'th',
+  'details',
+  'summary',
+]
+
+// Only class, href, target, rel, title, id survive sanitisation — in
+// particular, no on* handlers and no style attribute (which could pull in
+// url(javascript:...) tricks in older engines).
+const ALLOWED_ATTR = ['class', 'href', 'target', 'rel', 'title', 'id']
+
+function sanitizeHtml(html) {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR,
+    // Allow http(s) + mailto links; reject javascript:, data:, vbscript:, etc.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[#/])/i,
+  })
+}
 
 // State to track incomplete markdown elements during LLM response streaming
 let streamingState = {
@@ -46,13 +104,15 @@ export const formatMarkdown = (markdown, isStreaming = false) => {
   let formatted = markdown
 
   // If not streaming, process normally
+  let html
   if (!isStreaming) {
     resetStreamingState()
-    return processCompleteMarkdown(formatted)
+    html = processCompleteMarkdown(formatted)
+  } else {
+    html = processStreamingMarkdown(formatted)
   }
 
-  // For streaming content, use incremental processing
-  return processStreamingMarkdown(formatted)
+  return sanitizeHtml(html)
 }
 
 /**

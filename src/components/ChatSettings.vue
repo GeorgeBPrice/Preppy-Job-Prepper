@@ -141,22 +141,25 @@
       </div>
     </div>
 
-    <!-- System Prompt -->
+    <!-- Extra Instructions (style preferences) -->
     <div class="form-group mb-3">
-      <label for="chat-system-prompt" class="form-label">
-        System Prompt (optional)
+      <label for="chat-extra-instructions" class="form-label">
+        Extra Instructions (optional)
         <i
           class="bi bi-info-circle"
-          title="Custom instructions for the AI about how to behave. Leave empty to use default."
+          title="Style preferences that are appended to Preppy's base instructions. They cannot weaken the core safety and scope rules — e.g. 'keep examples short', 'prefer ES modules syntax', 'explain like I have a Python background'."
         ></i>
       </label>
       <textarea
-        id="chat-system-prompt"
-        v-model="systemPrompt"
+        id="chat-extra-instructions"
+        v-model="extraInstructions"
         class="form-control"
-        placeholder="Instructions such as 'I am a senior developer'..."
+        placeholder="e.g. 'keep examples under 10 lines', 'prefer arrow functions', 'explain like I have a Python background'..."
         rows="3"
       ></textarea>
+      <small class="form-text text-muted">
+        These add to Preppy's tutor instructions — they cannot change Preppy's role or disable safety rules.
+      </small>
     </div>
 
     <!-- Terms checkbox -->
@@ -240,7 +243,10 @@ const version = ref(aiChatStore.version)
 const customModel = ref(aiChatStore.customModel)
 const customEndpoint = ref(aiChatStore.customEndpoint)
 const customHeaders = ref(aiChatStore.customHeaders)
-const systemPrompt = ref(aiChatStore.systemPrompt)
+// Was called `systemPrompt` — renamed because the store no longer treats this
+// as a full replacement for the system message; it's appended as style
+// preferences. See promptBuilder.buildChatSystemPrompt.
+const extraInstructions = ref(aiChatStore.extraInstructions || aiChatStore.systemPrompt || '')
 const isSaving = ref(false)
 const saveStatus = ref('')
 const showAlert = ref(!aiChatStore.apiKey)
@@ -337,7 +343,7 @@ const saveSettings = async () => {
     aiChatStore.setProvider(provider.value)
     aiChatStore.setApiKey(apiKey.value)
     aiChatStore.setVersion(version.value)
-    aiChatStore.setSystemPrompt(systemPrompt.value)
+    aiChatStore.setExtraInstructions(extraInstructions.value)
     aiChatStore.setStreaming(streamingEnabled.value)
     aiChatStore.setTermsAccepted(termsAccepted.value)
     aiChatStore.saveSettings()
@@ -437,7 +443,7 @@ onMounted(() => {
   customModel.value = aiChatStore.customModel
   customEndpoint.value = aiChatStore.customEndpoint
   customHeaders.value = aiChatStore.customHeaders
-  systemPrompt.value = aiChatStore.systemPrompt
+  extraInstructions.value = aiChatStore.extraInstructions || aiChatStore.systemPrompt || ''
   termsAccepted.value = aiChatStore.termsAccepted
   streamingEnabled.value = aiChatStore.useStreaming
   showAlert.value = !aiChatStore.apiKey

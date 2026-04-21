@@ -48,9 +48,16 @@ async function runAction(action) {
     explanation: props.explanation,
   }
   const message = action.build(ctx)
-  aiChatStore.setConversationContext(
-    `${ctx.topic} — ${ctx.sectionTitle} — ${ctx.lessonTitle}`.trim(),
-  )
+  // Seed structured lesson context so the system prompt is grounded in
+  // this specific lesson block — overrides whatever AIChat.vue's page
+  // scraper produced, which may be stale or empty on some views.
+  aiChatStore.setLessonContext({
+    topic: ctx.topic,
+    sectionTitle: ctx.sectionTitle,
+    lessonTitle: ctx.lessonTitle,
+    subsectionTitle: ctx.subsectionTitle,
+    excerpt: ctx.explanation,
+  })
   aiChatStore.openChat()
   await aiChatStore.sendMessage(message, topicStore.currentTopic)
 }
