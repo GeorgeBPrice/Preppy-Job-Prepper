@@ -25,6 +25,7 @@
     "bootstrap-vue-3": "^0.3.12",
     "canvas-confetti": "^1.9.3",
     "codemirror": "^6.0.2",
+    "dompurify": "^3.4.0",
     "js-cookie": "^3.0.5",
     "marked": "^15.0.12",
     "pinia": "^3.0.1",
