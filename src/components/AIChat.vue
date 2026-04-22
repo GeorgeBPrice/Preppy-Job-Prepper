@@ -127,13 +127,14 @@
               related to your coding lessons. I'm here to help you learn!
             </p>
             <div v-if="!aiChatStore.apiKey" class="api-key-warning">
-              <i class="bi bi-exclamation-triangle-fill me-2"></i>
-              <span
-                >You need to configure an API key in settings to get started.
-                <button @click="showSettings = true" class="btn-link">
-                  <i class="bi bi-gear"></i> Configure Settings
-                </button>
-              </span>
+              <div class="api-key-warning__text">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span>Add an API key to start chatting with Preppy.</span>
+              </div>
+              <button @click="showSettings = true" class="api-key-warning__btn" type="button">
+                <i class="bi bi-gear"></i>
+                <span>Configure AI Settings</span>
+              </button>
             </div>
           </div>
 
@@ -167,7 +168,7 @@
 
       <!-- Settings panel -->
       <div v-else class="settings-container">
-        <ChatSettings />
+        <ChatSettings @back="showSettings = false" />
       </div>
     </div>
   </div>
@@ -711,29 +712,69 @@ onUnmounted(() => {
 }
 
 .api-key-warning {
-  margin-top: 15px;
-  padding: 10px;
-  background-color: rgba(var(--warning-color-rgb, 255, 193, 7), 0.1);
-  border-radius: 6px;
-  font-size: 0.8rem;
-  color: var(--warning-color);
-  text-align: left;
+  margin-top: 16px;
+  padding: 14px;
+  background-color: rgba(var(--warning-color-rgb, 245, 158, 11), 0.08);
+  border: 1px solid rgba(var(--warning-color-rgb, 245, 158, 11), 0.35);
+  border-radius: 8px;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  text-align: left;
 }
 
-.btn-link {
-  background: none;
-  border: none;
-  color: #4f46e5;
-  padding: 0;
-  font-size: inherit;
-  text-decoration: underline;
+.api-key-warning__text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-color);
+}
+
+.api-key-warning__text i {
+  color: var(--warning-color);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.api-key-warning__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.2;
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  background-color: var(--primary-color);
+  color: #ffffff;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
-.btn-link:hover {
-  color: #4338ca;
+.api-key-warning__btn:hover {
+  background-color: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
+}
+
+.api-key-warning__btn:active {
+  transform: translateY(1px);
+}
+
+.api-key-warning__btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+body.dark-mode .api-key-warning__btn {
+  color: #111827;
+}
+
+body.dark-mode .api-key-warning__btn:hover {
+  color: #ffffff;
 }
 
 .typing-indicator {

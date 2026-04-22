@@ -183,7 +183,7 @@
           @click="showConfirm('save')"
           class="btn"
           :class="saveButtonClass"
-          :disabled="isSaving || (provider !== 'ollama' && !apiKey)"
+          :disabled="!canSave"
         >
           <span v-if="isSaving">
             <span
@@ -196,6 +196,14 @@
           <span v-else>
             {{ saveStatus || 'Save Settings' }}
           </span>
+        </button>
+        <button
+          @click="emit('back')"
+          class="btn btn-back"
+          type="button"
+          title="Return to the chat"
+        >
+          Back to Chat
         </button>
         <button
           v-if="aiChatStore.apiKey"
@@ -231,8 +239,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAIChatStore } from '../store/aiChat'
 import { testChatApiConnection } from '../utils/aiChatService'
+import { getProvider } from '../utils/aiProviders'
 import TermsAndConditions from './TermsAndConditions.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+
+const emit = defineEmits(['back'])
 
 const aiChatStore = useAIChatStore()
 
@@ -257,27 +268,54 @@ const termsAccepted = ref(false)
 const isTesting = ref(false)
 
 // Computed properties
-const saveButtonClass = computed(() => {
-  if (saveStatus.value === 'Saved Successfully') {
-    return 'btn-success'
-  } else if (saveStatus.value === 'Invalid API Key' || saveStatus.value === 'Connection Failed') {
-    return 'btn-danger'
-  } else {
-    return 'btn-secondary'
+
+// Required fields are filled in and we're ready to attempt a save.
+// Drives both the btn-success cue and the :disabled gate on the button.
+const canSave = computed(() => {
+  if (isSaving.value) return false
+  if (!termsAccepted.value) return false
+  if (!version.value || !version.value.trim()) return false
+  if (provider.value === 'ollama') return true
+  if (!apiKey.value || !apiKey.value.trim()) return false
+  if (provider.value === 'other') {
+    if (!customEndpoint.value || !customEndpoint.value.startsWith('http')) return false
+    if (!customModel.value || !customModel.value.trim()) return false
   }
+  return true
+})
+
+const ERROR_STATUSES = new Set([
+  'Invalid API Key',
+  'Connection Failed',
+  'Invalid Endpoint',
+  'Model Required',
+  'Terms Required',
+])
+
+const saveButtonClass = computed(() => {
+  if (saveStatus.value === 'Saved Successfully') return 'btn-success'
+  if (ERROR_STATUSES.has(saveStatus.value)) return 'btn-danger'
+  if (canSave.value) return 'btn-success'
+  return 'btn-secondary'
 })
 
 const handleProviderChange = () => {
   saveStatus.value = ''
 
-  if (aiChatStore.isCustomProvider) {
+  if (provider.value === 'other') {
     customModel.value = aiChatStore.customModel || ''
     customEndpoint.value = aiChatStore.customEndpoint || ''
     customHeaders.value = aiChatStore.customHeaders || ''
+    // Custom provider uses `customModel`, not `version` — leave version alone.
   } else if (provider.value === 'ollama') {
-    // For Ollama, use the current version, no key is required
-    version.value = aiChatStore.version || ''
+    // Preserve any previously-entered local model name; fall back to the
+    // catalogue default if the user has never set one.
+    version.value = aiChatStore.version || getProvider(provider.value)?.model || ''
     apiKey.value = 'OLLAMA-LOCAL-NO-KEY-REQUIRED'
+  } else {
+    // Auto-populate the version field with the selected provider's default
+    // model id. The input stays editable so users can override.
+    version.value = getProvider(provider.value)?.model || ''
   }
 }
 
@@ -447,6 +485,12 @@ onMounted(() => {
   termsAccepted.value = aiChatStore.termsAccepted
   streamingEnabled.value = aiChatStore.useStreaming
   showAlert.value = !aiChatStore.apiKey
+
+  // First visit (or stored settings with no version): seed from the
+  // catalogue so the Model Version field isn't blank out of the gate.
+  if (!version.value && provider.value !== 'other') {
+    version.value = getProvider(provider.value)?.model || ''
+  }
 })
 </script>
 
@@ -486,6 +530,33 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+}
+
+.settings-back {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-back:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-back:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 /* dark mode form controls */

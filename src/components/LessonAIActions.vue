@@ -1,5 +1,5 @@
 <template>
-  <div class="lesson-ai-actions" v-if="hasApiKey">
+  <div class="lesson-ai-actions">
     <span class="lesson-ai-actions__label">
       <i class="bi bi-magic"></i>
       Ask Preppy:
@@ -20,7 +20,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { useAIChatStore } from '../store/aiChat'
 import { useTopicStore } from '../store/topic'
 import { LESSON_QUICK_ACTIONS } from '../utils/aiPrompts'
@@ -36,10 +35,15 @@ const aiChatStore = useAIChatStore()
 const topicStore = useTopicStore()
 const actions = LESSON_QUICK_ACTIONS
 
-const hasApiKey = computed(() => !!aiChatStore.apiKey && aiChatStore.apiKey.trim() !== '')
-
 async function runAction(action) {
   if (aiChatStore.isSending) return
+  const hasApiKey = !!aiChatStore.apiKey && aiChatStore.apiKey.trim() !== ''
+  // No key configured — open the chat so its landing view prompts the
+  // user to configure. Skip the send; we don't want a silent failure.
+  if (!hasApiKey) {
+    aiChatStore.openChat()
+    return
+  }
   const ctx = {
     topic: topicStore.currentTopicName,
     sectionTitle: props.sectionTitle,
